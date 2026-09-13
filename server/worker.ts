@@ -8,6 +8,9 @@ export class Worker {
   private lastScan = 0;
   constructor(public service: RealityService) {
     this.handlers.set("scan", () => service.scan());
+    this.handlers.set("mission-scan", (p) =>
+      service.scanEntity(service.entity(p.entityId), true),
+    );
     this.handlers.set("repair", (p) => service.execute(p.planId));
     this.handlers.set("dependency", async (p) =>
       service.onDependency?.(p.eventId),

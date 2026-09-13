@@ -11,7 +11,8 @@
 - Distinguish notification settings, message presence from
   guaranteed delivery or readership.
 - Preserve existing project files and Git history when adding the app scaffold.
-- The user requested incremental commits and pushes to the private ATLAS repo.
+- The user requested incremental commits and pushes to ATLAS. On September 13,
+  2026, they explicitly confirmed: keep the repository public and push.
   Push meaningful, verified checkpoints to the current tracked branch. Inspect
   staged files, preserve remote work, and never force-push.
 - Never commit API keys, OAuth credentials, real source evidence, local databases,

@@ -18,7 +18,8 @@ controls/replies while the backend is running. Reviewed Slack sends and Jira
 comments verify presence, never readership.
 
 Defer business websites/listings/hours reconciliation, native phone alarms, CRM,
-and automatic customer messaging. The application stays local and ATLAS private.
+and automatic customer messaging. The application stays local. The user approved
+keeping ATLAS public on September 13, 2026; secrets and real evidence stay outside Git.
 
 ## Architecture
 
@@ -31,6 +32,15 @@ Views: Reality Health, Conflict Detail, Evidence Blackboard, History, Connection
 event Adapt panel (reminders, preparation, drafts), preferences and inbox.
 Natural-language action box parses validated intents, resolves actual records,
 previews concrete actions, and requires choices for ambiguity.
+
+Demo Mission Control is a local route within this workspace, linked from the main
+navigation. It presents the complete launch sequence with a growing evidence
+timeline, independent assessment milestones, exact two-resource previews,
+revision-bound approval, individual operations, independent verification, and Adapt.
+Demo Replay is deterministic and provider-free; Live uses configured bindings,
+fresh reads and backend progress events, with no silent replay fallback. The
+presentation uses the September 30 → October 2 all-day milestone scenario and
+an explicitly labeled optional recovery replay. See MISSION_CONTROL.md.
 
 Zod contracts cover original Evidence/Assessment/Decision/RepairPlan/RepairAction/
 Approval/VerificationObservation plus:
@@ -167,7 +177,7 @@ Optional WebMCP inspection/scan/review/receipt shares app policy without approva
 4. Reminder dependencies, preferences, provider verification/cancellation/restart.
 5. Unified demo, failure tests, live checks, setup/demo instructions.
 
-Push meaningful verified checkpoints to private aromano3141/ATLAS; inspect staged
+Push meaningful verified checkpoints to aromano3141/ATLAS (public by explicit user approval); inspect staged
 files, preserve history/remote work, never force-push, verify remote HEAD. No keys,
 tokens, real evidence, databases, generated builds or dependencies in Git.
 

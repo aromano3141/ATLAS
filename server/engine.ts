@@ -150,12 +150,25 @@ export async function investigate(
   engine: ReconciliationEngine,
   s: Snapshot,
   commit: (a: AssessmentT[]) => void,
+  observe: (
+    kind: string,
+    detail?: {
+      role?: AssessmentT["role"];
+      round?: "initial" | "followup";
+      claims?: ClaimT[];
+      initial?: AssessmentT[];
+      followup?: AssessmentT[];
+    },
+  ) => void = () => {},
 ) {
   assert(s.complete, "Evidence coverage is incomplete.");
+  observe("extracting");
   const claims = validateClaims(s, await engine.extract(s));
+  observe("claims_ready", { claims });
   const roles = ["temporal", "authority", "skeptic"] as const;
   const settled = await Promise.allSettled(
     roles.map(async (role) => {
+      observe("assessment_started", { role, round: "initial" });
       const result = Assessment.parse(await engine.assess(role, s, claims));
       assert(
         result.role === role,
@@ -165,6 +178,7 @@ export async function investigate(
         result.supported.every((id) => s.evidence.some((e) => e.id === id)),
         "Assessment contains an unknown source.",
       );
+      observe("assessment_sealed", { role, round: "initial" });
       return result;
     }),
   );
@@ -172,6 +186,7 @@ export async function investigate(
     result.status === "fulfilled" ? [result.value] : [],
   );
   commit(initial);
+  observe("assessments_committed", { initial });
   assert(
     initial.length === 3,
     "An independent assessment failed. No repair may be proposed from incomplete assessments.",
@@ -179,6 +194,7 @@ export async function investigate(
   const followup = initial.some((a) => a.needsFollowup)
     ? await Promise.all(
         roles.map(async (role) => {
+          observe("assessment_started", { role, round: "followup" });
           const a = Assessment.parse(
             await engine.assess(role, s, claims, initial),
           );
@@ -187,10 +203,12 @@ export async function investigate(
               a.supported.every((id) => s.evidence.some((e) => e.id === id)),
             "Invalid follow-up reference.",
           );
+          observe("assessment_sealed", { role, round: "followup" });
           return a;
         }),
       )
     : [];
+  if (followup.length) observe("followup_committed", { followup });
   return {
     claims,
     initial,

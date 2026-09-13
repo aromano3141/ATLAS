@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
+import { missionData } from "./mission.ts";
 import { getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import { timingSafeEqual, randomBytes } from "node:crypto";
@@ -171,6 +173,53 @@ export function createApi(
       "Add a reconciliation entity in Connections first.",
     );
     return c.json({ jobId: r.service.store.enqueue("scan", id(), {}) }, 202);
+  });
+  app.get("/api/mission/:id", (c) => {
+    const service = getRuntime(c).service;
+    return c.json({
+      ...missionData(service, c.req.param("id")),
+      credentials: configured(),
+    });
+  });
+  app.post("/api/mission/:id/scan", (c) => {
+    const service = getRuntime(c).service;
+    const entity = service.entity(c.req.param("id"));
+    const previous = service.store.get("missionJob", entity.id);
+    const active = service.store
+      .jobs()
+      .find(
+        (j) =>
+          j.id === previous?.jobId &&
+          ["queued", "running"].includes(String(j.state)),
+      );
+    const jobId =
+      active?.id ??
+      service.store.enqueue("mission-scan", id(), { entityId: entity.id });
+    service.store.put("missionJob", entity.id, { jobId });
+    return c.json({ jobId }, 202);
+  });
+  // Only the authenticated live workspace uses this stream. Replay never opens it.
+  app.get("/api/mission/:id/events", (c) => {
+    const entityId = c.req.param("id");
+    live.service.entity(entityId);
+    return streamSSE(c, async (stream) => {
+      let previous = "";
+      while (!stream.aborted) {
+        const data = JSON.stringify({
+          ...missionData(live.service, entityId),
+          credentials: configured(),
+        });
+        if (data !== previous) {
+          await stream.writeSSE({ event: "mission", data });
+          previous = data;
+        } else
+          await stream.writeSSE({
+            event: "heartbeat",
+            data: String(Date.now()),
+          });
+        await stream.sleep(800);
+      }
+    });
   });
   app.put("/api/config", async (c) => {
     assert(getRuntime(c) === live, "Fixture configuration is fixed.");

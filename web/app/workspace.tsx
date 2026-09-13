@@ -312,6 +312,17 @@ export default function Workspace() {
         </SidebarHeader>
         <SidebarContent className="px-3 py-6">
           <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                className="h-11 px-3 text-sm font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100"
+              >
+                <a href="/mission-control">
+                  <Play />
+                  <span>Demo Mission Control</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             {nav.map((n) => (
               <SidebarMenuItem key={n.label}>
                 <SidebarMenuButton

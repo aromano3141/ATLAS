@@ -67,9 +67,31 @@ to be demonstrated. This diagnostic did not authorize any of those writes.
 Keep reconciliation, reminder, and communication outcomes separate. Verify
 notification settings and message presence; do not promise device alerts or reading.
 
-The application and ATLAS repository remain private/local. The separate static
+The application remains local. The user subsequently approved keeping ATLAS public
+and pushing the Mission Control checkpoint on September 13, 2026. The separate static
 policy documents contain no application code, credentials, or evidence. Their
 last public deployment is recorded in `policies/DEPLOYMENT.json`.
 
 Policy sources have been updated for the scope removal. The previously published
 policy site was left unchanged during this provider read-only task.
+
+## Demo Mission Control — September 13, 2026
+
+- Added `/mission-control` within the local app and a main-sidebar entry.
+- Browser checks exercised every replay scene, Play/Pause, Next, the mandatory
+  approval gate, exact all-day Calendar/Jira patches, individual operation states,
+  verified readbacks, Adapt, and the technical inspector.
+- The recovery replay paused on an uncertain Calendar write, resumed by reread,
+  retained a single Calendar write attempt, and finished with two verified repairs.
+- Live mode fetched the configured launch and connected its actual backend event
+  stream. The latest read-only check returned one Slack evidence record; the
+  requested October 2 reply was absent. Calendar and Jira still held the baseline
+  September 30 dates. No live approval/effect records were created.
+- TypeScript checks, production build, and 46 deterministic tests pass. Five new
+  tests cover replay boundaries, readback/approval badge requirements, expected
+  reply matching, the assessment commit barrier, and read-only scan isolation.
+
+This supersedes the earlier statement about Mission Control browser testing only;
+the original workspace's entire browser surface was not re-tested. Live approved
+writes, real successful-write timeout recovery, and delivery/readership remain
+outside this read-only development validation. Replay operations are simulated.

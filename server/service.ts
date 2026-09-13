@@ -14,6 +14,7 @@ import type { ReconciliationEngine } from "./engine.ts";
 import { investigate, planRevision } from "./engine.ts";
 import { eventStart, moveEvent, occurrenceKey, eligible } from "./time.ts";
 import { assert, hash, id, now, pick, equal, safeError } from "./util.ts";
+import type { MissionProgress } from "./mission.ts";
 
 export function sourceDigest(s: Snapshot) {
   return hash(
@@ -86,17 +87,97 @@ export class RealityService {
     this.store.put("meta", "lastScan", { at: now(), results });
     return results;
   }
-  async scanEntity(entity: EntityT) {
+  missionProgress(
+    entityId: string,
+    kind: string,
+    detail: Record<string, any> = {},
+  ) {
+    const progress = this.store.get<MissionProgress>(
+      "missionProgress",
+      entityId,
+    );
+    if (!progress) return;
+    const { role, round, actionId, ...data } = detail;
+    const at = now();
+    this.store.put("missionProgress", entityId, {
+      ...progress,
+      ...data,
+      updatedAt: at,
+      events: [
+        ...progress.events,
+        {
+          seq: (progress.events.at(-1)?.seq ?? 0) + 1,
+          at,
+          kind,
+          role,
+          round,
+          actionId,
+        },
+      ].slice(-150),
+    });
+  }
+  async scanEntity(entity: EntityT, readOnly = false) {
+    const at = now();
+    this.store.put("missionProgress", entity.id, {
+      id: id(),
+      entityId: entity.id,
+      state: "reading",
+      startedAt: at,
+      updatedAt: at,
+      events: [{ seq: 1, at, kind: "reading" }],
+    } satisfies MissionProgress);
+    try {
+      const result = await this.scanEntityRun(entity, readOnly);
+      this.missionProgress(entity.id, "scan_complete", {
+        state: "complete",
+        reused: !!("unchanged" in result && result.unchanged),
+      });
+      this.store.put("scanError", entity.id, {
+        entityId: entity.id,
+        at: now(),
+      });
+      return result;
+    } catch (error) {
+      this.missionProgress(entity.id, "scan_failed", {
+        state: "failed",
+        error: safeError(error),
+      });
+      throw error;
+    }
+  }
+  private async scanEntityRun(entity: EntityT, readOnly: boolean) {
     const s = await this.providers.snapshot(entity);
     await this.enrichClarifications(s);
     s.id = hash([s.id, sourceDigest(s)]);
     this.store.immutable("snapshot", s.id, s);
+    this.store.put("missionSnapshot", entity.id, s);
+    this.missionProgress(entity.id, "evidence_received", {
+      state: "investigating",
+    });
     const old = this.store.get<{ snapshotId: string; planId: string }>(
       "current",
       entity.id,
     );
-    if (old?.snapshotId === s.id)
+    if (old?.snapshotId === s.id) {
+      // A presentation scan can persist a plan without adapting schedules. The
+      // next normal scan must still publish the event/dependency revision.
+      if (!readOnly) {
+        const plan = this.plan(old.planId);
+        const verified = this.store.get("run", plan.id)?.state === "verified";
+        this.saveEvent(
+          s,
+          verified
+            ? []
+            : plan.unresolved.length
+              ? plan.unresolved
+              : plan.actions.some((a) => a.provider === "calendar")
+                ? Object.keys(plan.canonical)
+                : [],
+          plan.id,
+        );
+      }
       return { entityId: entity.id, planId: old.planId, unchanged: true };
+    }
     if (old && this.store.get("run", old.planId)?.state === "verified") {
       const previous = this.plan(old.planId);
       const original = this.store.get<Snapshot>(
@@ -119,7 +200,7 @@ export class RealityService {
             snapshotId: s.id,
             planId: previous.id,
           });
-          this.saveEvent(s, [], previous.id);
+          if (!readOnly) this.saveEvent(s, [], previous.id);
         });
         return { entityId: entity.id, planId: previous.id, unchanged: true };
       }
@@ -150,16 +231,21 @@ export class RealityService {
           snapshotId: s.id,
           planId: plan.id,
         });
-        if (s.calendar.start) this.saveEvent(s, ["inactive"], plan.id);
+        if (!readOnly && s.calendar.start)
+          this.saveEvent(s, ["inactive"], plan.id);
       });
       return { entityId: entity.id, planId: plan.id, status: "inactive" };
     }
-    const result = await investigate(this.engine, s, (a) =>
-      this.store.immutable("assessment", hash([s.id, a]), {
-        snapshotId: s.id,
-        initial: a,
-        committedAt: now(),
-      }),
+    const result = await investigate(
+      this.engine,
+      s,
+      (a) =>
+        this.store.immutable("assessment", hash([s.id, a]), {
+          snapshotId: s.id,
+          initial: a,
+          committedAt: now(),
+        }),
+      (kind, detail) => this.missionProgress(entity.id, kind, detail),
     );
     const { canonical, unresolved } = result;
     const planId = planRevision(s.id, canonical);
@@ -246,15 +332,16 @@ export class RealityService {
         planId: plan.id,
         status: plan.status,
       });
-      this.saveEvent(
-        s,
-        plan.unresolved.length
-          ? plan.unresolved
-          : actions.some((a) => a.provider === "calendar")
-            ? Object.keys(canonical)
-            : [],
-        plan.id,
-      );
+      if (!readOnly)
+        this.saveEvent(
+          s,
+          plan.unresolved.length
+            ? plan.unresolved
+            : actions.some((a) => a.provider === "calendar")
+              ? Object.keys(canonical)
+              : [],
+          plan.id,
+        );
     });
     return { entityId: entity.id, planId: plan.id, status: plan.status };
   }
@@ -451,6 +538,7 @@ export class RealityService {
     this.authorized(p);
     const entity = this.entity(p.entityId);
     this.store.put("run", planId, { planId, state: "executing" });
+    this.missionProgress(p.entityId, "execution_started");
     try {
       for (const action of p.actions) {
         this.authorized(p);
@@ -468,6 +556,7 @@ export class RealityService {
         "Final verification found provider drift.",
       );
       this.store.transaction(() => {
+        this.store.put("missionSnapshot", entity.id, final);
         this.saveEvent(final, [], p.id);
         this.store.put("run", planId, {
           planId,
@@ -485,6 +574,7 @@ export class RealityService {
           mode: this.providers.mode,
         });
       });
+      this.missionProgress(p.entityId, "verification_complete");
     } catch (error) {
       const effects = p.actions.map((a) => this.store.effect(a.id));
       const state = effects.some((e) => e?.state === "verified")
@@ -498,6 +588,7 @@ export class RealityService {
         error: safeError(error),
         at: now(),
       });
+      this.missionProgress(p.entityId, "execution_incomplete");
       // A verified Calendar effect is its own outcome, even if a later Jira write fails.
       if (
         p.actions.some(
@@ -547,6 +638,9 @@ export class RealityService {
         alreadyPresent: effect.attempts === 0,
       };
       this.store.putEffect(effect);
+      this.missionProgress(p.entityId, "operation_recovered", {
+        actionId: a.id,
+      });
       return;
     }
     assert(
@@ -566,6 +660,7 @@ export class RealityService {
     effect.state = "sending";
     effect.attempts++;
     this.store.putEffect(effect);
+    this.missionProgress(p.entityId, "operation_started", { actionId: a.id });
     try {
       if (a.provider === "calendar")
         await this.providers.calendarPatch(
@@ -575,6 +670,9 @@ export class RealityService {
           a.etag!,
         );
       else await this.providers.jiraPatch(a.target, a.patch);
+      this.missionProgress(p.entityId, "awaiting_verification", {
+        actionId: a.id,
+      });
       if (
         this.providers.mode === "live" &&
         process.env.REALITY_SYNC_ALLOW_LIVE_TEST_HOOK === "1" &&
@@ -608,6 +706,9 @@ export class RealityService {
       effect.state = "verified";
       effect.error = undefined;
       this.store.putEffect(effect);
+      this.missionProgress(p.entityId, "operation_verified", {
+        actionId: a.id,
+      });
     } catch (error) {
       effect.state =
         error instanceof ProviderError && !error.uncertain
@@ -615,6 +716,7 @@ export class RealityService {
           : "uncertain";
       effect.error = safeError(error);
       this.store.putEffect(effect);
+      this.missionProgress(p.entityId, "operation_failed", { actionId: a.id });
       throw error;
     }
   }
