@@ -1,11 +1,15 @@
 # Project instructions
 
-- Follow docs/PLAN.md. The first run covers Slack, Google Calendar, and Jira only.
+- Follow docs/PLAN.md: reconcile, verify, and adapt across Slack, Calendar, and Jira.
+- Include smart reminders, reviewed messages, and Google Routes/Places navigation.
 - Defer business websites, public listings, business-hours reconciliation, and
-  public publication workflows until the user requests the next phase.
+  business publication workflows until the user requests the next phase.
 - Keep evidence, independent assessments, approval, real writes, recovery, and
   external-state verification in the first-run scope.
-- Run locally; do not deploy or register a hosted Site for this phase.
+- Run the app locally. Only a separate Terms/Privacy policy site may be public.
+- Require audience checks and revision-bound approvals for reviewed messages.
+- Distinguish notification settings, message presence, and route estimates from
+  guaranteed delivery, readership, or arrival.
 - Preserve existing project files and Git history when adding the app scaffold.
 - The user requested incremental commits and pushes to the private ATLAS repo.
   Push meaningful, verified checkpoints to the current tracked branch. Inspect
