@@ -1,7 +1,8 @@
 # Reality Sync setup
 
 The application runs on your computer. The policy site contains Terms and Privacy
-documents only. Keep ATLAS private and use dedicated demo resources.
+documents only. ATLAS is public by the owner's explicit approval; keep credentials
+and real evidence outside Git and use dedicated demo resources.
 
 ## Start locally
 

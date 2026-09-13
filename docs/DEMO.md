@@ -1,5 +1,11 @@
 # Demonstrations
 
+For the current September 30 → October 2 judge presentation, use
+[Demo Mission Control](MISSION_CONTROL.md). That guide also explains the main-app
+operator-directed Atlas date-repair button and its UI-only agent panels. The
+fixture examples below exercise the broader evidence-driven engine and use their
+own dates; they are separate from the current presentation scenario.
+
 ## Explore without accounts
 
 Start `npm run dev`, open http://localhost:5173, choose **Fixture workspace**, and
