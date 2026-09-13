@@ -35,8 +35,6 @@ synthetic data in a separate database; it never calls the live integrations.
   availability-checked preparation blocks, and a durable in-app inbox.
 - Calendar offset preservation and maintenance, personal scheduled Slack messages,
   cancellation cutoff handling, and provider schedule reconciliation on restart.
-- Driving estimates using Google Routes and Places, one optional stop, dwell and
-  detour comparison, destination selection, departure reminders, and Maps handoff.
 - Reviewed Slack messages and Jira comments, exact audience previews, disclosure
   checks, clarification replies as evidence, and revision-checked Socket Mode controls.
 - Natural-language intent previews, connection/resource configuration, notification
@@ -58,12 +56,14 @@ npm run demo:recovery
 npm run test:http
 # Read-only; returns nonzero until provider configuration is ready:
 npm run live:check
+npm run scan:read-only -- --entity YOUR_ENTITY_ID
 ```
 
 Automated checks use deterministic fixtures and mocked provider contracts. Actual
-Slack, Calendar, Jira, OpenAI, and Maps acceptance is **pending account setup**.
+Slack, Calendar, Jira, and OpenAI passed a live read-only launch scan. Approved
+provider writes, reminders, messaging, and live recovery acceptance remain pending.
 The setup and demo guides describe the required approved live writes, recovery
-demonstration, notification settings, message readbacks, and real route estimates.
+demonstration, notification settings, and message readbacks.
 
 ## Publication and scope
 
@@ -72,9 +72,9 @@ is public. ATLAS remains private; neither the application nor its evidence is
 published. Policy sources and deployment metadata are in `policies/`.
 
 Business websites, public listings, business-hours synchronization, native phone
-alarms, turn-by-turn navigation, CRM, and automatic customer messaging are deferred.
-Maps is a supporting service; Slack, Calendar, and Jira remain the three business
-applications.
+alarms, CRM, and automatic customer messaging are deferred.
+Navigation and Maps have been removed. Slack, Calendar, and Jira are the three
+business applications.
 
 Push verified checkpoints to the private [ATLAS repository](https://github.com/aromano3141/ATLAS).
 Keep tokens, local databases, real evidence, and generated output out of Git.

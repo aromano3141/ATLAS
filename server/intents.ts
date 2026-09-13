@@ -24,15 +24,13 @@ export class Intents {
     } else {
       const minutes = text.match(/(\d+)\s*min/i);
       intent = Intent.parse({
-        kind: /route|drive|navigate|gas|coffee|pharmacy|charging|leave/i.test(
-          text,
-        )
-          ? "trip"
-          : /prepare|prep.*block/i.test(text)
-            ? "preparation"
-            : /message|draft|notify attendees/i.test(text)
-              ? "message"
-              : "reminder",
+        kind: /prepare|prep.*block/i.test(text)
+          ? "preparation"
+          : /message|draft|notify attendees/i.test(text)
+            ? "message"
+            : /remind|before|tomorrow|today/i.test(text)
+              ? "reminder"
+              : "unknown",
         selection: /every|today/i.test(text) ? "today" : "next",
         eventQuery: null,
         clientOnly: /client|customer/i.test(text),
@@ -49,19 +47,17 @@ export class Intents {
             ? "afternoon"
             : "unspecified",
         channel: /slack/i.test(text) ? "slack" : null,
-        stop: /gas/i.test(text)
-          ? "gas"
-          : /coffee/i.test(text)
-            ? "coffee"
-            : /pharmacy/i.test(text)
-              ? "pharmacy"
-              : /charging/i.test(text)
-                ? "ev"
-                : null,
-        maxAddedMinutes: null,
         needsClarification: null,
       });
     }
+    if (intent.kind === "unknown")
+      return {
+        intent,
+        events: [],
+        needsSelection: false,
+        warning:
+          "Supported requests are reminders, preparation tasks, and reviewed messages.",
+      };
     const config = this.service.config();
     let events = this.service.events().filter((e) => eligible(e.event));
     if (intent.clientOnly) events = events.filter((e) => e.clientMeeting);
@@ -92,21 +88,6 @@ export class Intents {
             config.preferences.timezone,
           )
         : undefined);
-    let virtualWarning: string | undefined;
-    if (
-      intent.kind === "trip" &&
-      intent.selection === "next" &&
-      next.next &&
-      meetingKind(next.next.event) === "virtual"
-    ) {
-      virtualWarning =
-        "Your next meeting is virtual. Choose the next in-person meeting if you need a route.";
-      if (
-        next.nextPhysical &&
-        !events.some((e) => e.id === next.nextPhysical!.id)
-      )
-        events.push(next.nextPhysical);
-    }
     return {
       intent,
       events: events.map((e) => ({
@@ -122,7 +103,6 @@ export class Intents {
       needsSelection: next.ambiguous || events.length !== 1,
       warning:
         intent.needsClarification ||
-        virtualWarning ||
         (!events.length
           ? "No matching event is available. Scan Calendar or choose an event."
           : next.ambiguous

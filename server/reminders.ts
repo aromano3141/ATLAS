@@ -10,7 +10,6 @@ import { eventStart, eligible, reminderOverrides } from "./time.ts";
 import { assert, hash, id, now, equal } from "./util.ts";
 import { ProviderError } from "./providers.ts";
 export class Reminders {
-  freshDeparture?: (tripId: string, eventId: string) => Promise<string>;
   constructor(public service: RealityService) {}
   async preview(input: unknown) {
     const parsed = ReminderInput.parse(input);
@@ -25,7 +24,7 @@ export class Reminders {
     );
     assert(
       !(parsed.channel === "calendar" && parsed.rule !== "relative"),
-      "Use Slack or the app for absolute and departure reminders. Calendar offsets are event-relative.",
+      "Use Slack or the app for absolute reminders. Calendar offsets are event-relative.",
     );
     if (parsed.purpose === "preparation") {
       assert(
@@ -84,13 +83,6 @@ export class Reminders {
         "Choose an absolute date/time with timezone.",
       );
       return new Date(input.at).toISOString();
-    }
-    if (input.rule === "departure") {
-      assert(
-        input.tripId && this.freshDeparture,
-        "Choose a calculated trip first.",
-      );
-      return this.freshDeparture(input.tripId, event.id);
     }
     return new Date(
       Date.parse(
@@ -369,13 +361,6 @@ export class Reminders {
       hash(current) === hash(event.event),
       "Calendar changed. Scan before scheduling.",
     );
-    if (r.rule === "departure") {
-      const departure = await this.trigger(r, event);
-      assert(
-        departure === r.triggerAt,
-        "Departure estimate changed. Review the revised reminder.",
-      );
-    }
     if (Date.parse(r.triggerAt) <= Date.now()) {
       r.state = "missed";
       this.current(r);
@@ -570,7 +555,7 @@ export class Reminders {
           users: operator,
         })
       ).channel.id;
-    const text = `Reality Sync · ${this.service.currentEvent(r.eventId).event.summary || "Meeting"}\n${r.purpose === "departure" ? "Time to leave. Travel timing is an estimate." : r.purpose === "preparation" ? "Preparation reminder." : "Your meeting is coming up."}\nReference ${r.id.slice(0, 8)} / ${r.revision.slice(0, 8)}`;
+    const text = `Reality Sync · ${this.service.currentEvent(r.eventId).event.summary || "Meeting"}\n${r.purpose === "preparation" ? "Preparation reminder." : "Your meeting is coming up."}\nReference ${r.id.slice(0, 8)} / ${r.revision.slice(0, 8)}`;
     const request = {
       channel,
       post_at: Math.floor(Date.parse(r.triggerAt) / 1000),
@@ -838,43 +823,6 @@ export class Reminders {
         at: now(),
         reminderIds: missed,
       });
-  }
-  async refreshDeparture(tripId: string, triggerAt: string) {
-    for (const r of this.service.store
-      .all<Reminder>("reminder")
-      .filter(
-        (r) =>
-          r.tripId === tripId &&
-          !["canceled", "delivered", "missed"].includes(r.state),
-      )) {
-      if (!this.service.config().preferences.maintainRelative) continue;
-      assert(
-        !this.pending(r) && r.state !== "executing",
-        "Recover the previous reminder operation before changing departure timing.",
-      );
-      const event = this.service.currentEvent(r.eventId);
-      assert(!event.unresolved.length, "Departure facts are unresolved.");
-      if (r.triggerAt === triggerAt && r.eventRevision === event.revision)
-        continue;
-      assert(
-        Date.parse(triggerAt) > Date.now(),
-        "Refreshed departure is in the past. Review the trip.",
-      );
-      r.triggerAt = triggerAt;
-      r.eventRevision = event.revision;
-      r.revision = id();
-      r.state = "approved";
-      r.lastError = undefined;
-      this.service.store.transaction(() => {
-        this.service.store.put("reminder", r.id, r);
-        this.service.store.immutable("reminderRevision", r.revision, r);
-        this.service.store.enqueue("reminder", r.revision, {
-          id: r.id,
-          revision: r.revision,
-        });
-        this.inbox(r, "Departure timing refreshed; schedule update queued");
-      });
-    }
   }
   async preparation(eventId: string, start: string) {
     const event = this.service.currentEvent(eventId);

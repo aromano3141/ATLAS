@@ -50,6 +50,49 @@ export class Store {
         CREATE TABLE events(id INTEGER PRIMARY KEY,kind TEXT NOT NULL,body TEXT NOT NULL,at TEXT NOT NULL);`);
         this.db.prepare("INSERT INTO schema_migrations VALUES(1,?)").run(now());
       });
+    if (
+      !this.db
+        .prepare("SELECT version FROM schema_migrations WHERE version=2")
+        .get()
+    )
+      this.transaction(() => {
+        // Retire schedules from the removed navigation feature locally. Existing
+        // provider schedules are never canceled or rewritten by a migration.
+        for (const reminder of this.all("reminder")) {
+          if (reminder.rule !== "departure" && reminder.purpose !== "departure")
+            continue;
+          this.immutable("retiredReminder", reminder.id, {
+            ...reminder,
+            state: "retired",
+          });
+          this.db
+            .prepare("DELETE FROM records WHERE kind='reminder' AND id=?")
+            .run(reminder.id);
+          this.db
+            .prepare(
+              "UPDATE jobs SET state='canceled',error='Feature removed' WHERE kind='reminder' AND json_extract(payload,'$.id')=? AND state IN ('queued','running','failed')",
+            )
+            .run(reminder.id);
+          this.put("inbox", `retired:${reminder.id}`, {
+            id: reminder.id,
+            kind: "notice",
+            state: "attention",
+            message:
+              "A removed feature's reminder was retired locally. Any existing provider notification must be managed directly in that provider.",
+            providerId: reminder.providerId,
+            at: now(),
+          });
+        }
+        for (const trip of this.all("trip"))
+          this.immutable("retiredTrip", trip.id, trip);
+        this.db.prepare("DELETE FROM records WHERE kind='trip'").run();
+        this.db
+          .prepare(
+            "UPDATE jobs SET state='canceled',error='Feature removed' WHERE kind='travel-refresh' AND state IN ('queued','running','failed')",
+          )
+          .run();
+        this.db.prepare("INSERT INTO schema_migrations VALUES(2,?)").run(now());
+      });
   }
   transaction<T>(fn: () => T): T {
     this.db.exec("BEGIN IMMEDIATE");

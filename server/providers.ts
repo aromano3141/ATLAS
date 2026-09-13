@@ -344,27 +344,47 @@ export class LiveProviders implements Providers {
       ? process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN
       : process.env.SLACK_BOT_TOKEN;
     assert(token, "Configure a Slack bot token locally.");
+    // Slack's read endpoints expect query/form arguments. A JSON POST can
+    // authenticate successfully while reporting required fields as missing.
+    const query = new URLSearchParams();
+    if (read)
+      for (const [key, value] of Object.entries(params)) {
+        if (value === undefined || value === null) continue;
+        assert(
+          ["string", "number", "boolean"].includes(typeof value),
+          `Unsupported Slack query argument: ${key}`,
+        );
+        query.set(key, String(value));
+      }
     const data = await this.request(
       "slack",
-      `https://slack.com/api/${method}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        body: JSON.stringify(params),
-      },
+      `https://slack.com/api/${method}${read && query.size ? `?${query}` : ""}`,
+      read
+        ? {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        : {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json; charset=utf-8",
+            },
+            body: JSON.stringify(params),
+          },
       read,
     );
-    if (!data.ok)
-      throw new ProviderError(
+    if (!data.ok) {
+      const error = new ProviderError(
         "slack",
         data.error === "ratelimited" ? 429 : 400,
         data.error || "api_error",
         false,
         Number(data.retry_after || 0),
       );
+      error.message += ` (${method})`;
+      throw error;
+    }
     return data;
   }
   async pagedSlack(

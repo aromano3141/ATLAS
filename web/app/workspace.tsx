@@ -71,7 +71,6 @@ import type {
   EventRevision,
   RepairPlan,
   MessageDraft,
-  TripQuote,
 } from "../../server/contracts";
 
 const nav = [
@@ -991,7 +990,7 @@ function ActionBox({
       >
         <Sparkles size={19} />
         <Input
-          aria-label="Describe a reminder or trip"
+          aria-label="Describe a reminder, preparation task, or message"
           placeholder="45 minutes before my next client meeting…"
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -1054,13 +1053,7 @@ function Adapt({ state, mode, act }: { state: State; mode: Mode; act: Act }) {
       const d = (e as CustomEvent).detail;
       setEventId(d.eventId);
       setIntent(d.preview);
-      setTab(
-        d.preview.intent.kind === "trip"
-          ? "travel"
-          : d.preview.intent.kind === "message"
-            ? "messages"
-            : "reminders",
-      );
+      setTab(d.preview.intent.kind === "message" ? "messages" : "reminders");
     };
     window.addEventListener("reality-intent", listener);
     return () => window.removeEventListener("reality-intent", listener);
@@ -1097,10 +1090,6 @@ function Adapt({ state, mode, act }: { state: State; mode: Mode; act: Act }) {
             <Bell size={15} />
             Reminders & prep
           </TabsTrigger>
-          <TabsTrigger value="travel">
-            <MapPin size={15} />
-            Travel
-          </TabsTrigger>
           <TabsTrigger value="messages">
             <MessageSquare size={15} />
             Messages
@@ -1108,15 +1097,6 @@ function Adapt({ state, mode, act }: { state: State; mode: Mode; act: Act }) {
         </TabsList>
         <TabsContent value="reminders">
           <ReminderPanel
-            key={event.id}
-            event={event}
-            state={state}
-            act={act}
-            intent={intent}
-          />
-        </TabsContent>
-        <TabsContent value="travel">
-          <TravelPanel
             key={event.id}
             event={event}
             state={state}
@@ -1440,422 +1420,6 @@ function ReminderPanel({
       </div>
     </div>
   );
-}
-
-function TravelPanel({
-  event,
-  state,
-  act,
-  intent,
-}: {
-  event: EventRevision;
-  state: State;
-  act: Act;
-  intent: any;
-}) {
-  const [origin, setOrigin] = useState(state.config.savedOrigin?.address || ""),
-    [coords, setCoords] = useState<{ lat: number; lng: number }>(),
-    [destination, setDestination] = useState(""),
-    [stop, setStop] = useState("none"),
-    [dwell, setDwell] = useState("10"),
-    [buffer, setBuffer] = useState(
-      String(state.config.preferences.arrivalBuffer),
-    ),
-    [maxAdded, setMaxAdded] = useState("30"),
-    [connector, setConnector] = useState(""),
-    [result, setResult] = useState<any>(),
-    [accepted, setAccepted] = useState<string>(),
-    [geoError, setGeoError] = useState("");
-  const [originPlace, setOriginPlace] = useState<any>(),
-    [destinationPlace, setDestinationPlace] = useState<any>(),
-    [placeChoices, setPlaceChoices] = useState<any>(),
-    [resolveFor, setResolveFor] = useState<"origin" | "destination">("origin");
-  useEffect(() => {
-    if (intent?.intent.stop) {
-      setStop(intent.intent.stop);
-      setDwell(
-        intent.intent.stop === "ev"
-          ? "30"
-          : intent.intent.stop === "pharmacy"
-            ? "15"
-            : "10",
-      );
-    }
-    if (intent?.intent.maxAddedMinutes)
-      setMaxAdded(String(intent.intent.maxAddedMinutes));
-  }, [intent]);
-  const run = (fn: () => Promise<any>) => void fn().catch(() => {});
-  return (
-    <>
-      <div className="notice">
-        <MapPin size={18} />
-        <span>
-          Driving estimates with one optional stop. A confirmed personal
-          destination affects this trip only.
-        </span>
-      </div>
-      <form
-        className="form-grid travel-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setAccepted(undefined);
-          run(async () =>
-            setResult(
-              await act("/trips", {
-                eventId: event.id,
-                origin: coords
-                  ? { label: "My current location", ...coords, confirmed: true }
-                  : originPlace || {
-                      label: origin,
-                      address: origin,
-                      confirmed: true,
-                    },
-                ...(destination
-                  ? {
-                      destination: destinationPlace || {
-                        label: destination,
-                        address: destination,
-                        confirmed: true,
-                      },
-                    }
-                  : {}),
-                ...(stop !== "none"
-                  ? { stop, dwellMinutes: Number(dwell) }
-                  : {}),
-                bufferMinutes: Number(buffer),
-                maxAddedMinutes: Number(maxAdded),
-                ...(connector ? { connector } : {}),
-              }),
-            ),
-          );
-        }}
-      >
-        <Field label="Starting address">
-          <Input
-            value={coords ? "Current location confirmed" : origin}
-            onChange={(e) => {
-              setCoords(undefined);
-              setOriginPlace(undefined);
-              setOrigin(e.target.value);
-            }}
-            placeholder="Enter your current address"
-            required
-          />
-        </Field>
-        <div className="field">
-          <span>Or use device location</span>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (!navigator.geolocation) {
-                setGeoError("Location is unavailable; enter an address.");
-                return;
-              }
-              navigator.geolocation.getCurrentPosition(
-                (p) => {
-                  setCoords({
-                    lat: p.coords.latitude,
-                    lng: p.coords.longitude,
-                  });
-                  setGeoError("");
-                },
-                () =>
-                  setGeoError(
-                    "Location access was unavailable or denied. Enter an address.",
-                  ),
-                { timeout: 10000, maximumAge: 0 },
-              );
-            }}
-          >
-            Use my location
-          </Button>
-        </div>
-        <Field label="Personal destination override (optional)">
-          <Input
-            value={destination}
-            onChange={(e) => {
-              setDestinationPlace(undefined);
-              setDestination(e.target.value);
-            }}
-            placeholder={
-              state.config.places[event.event.location || ""]?.address ||
-              "Use confirmed meeting location"
-            }
-          />
-        </Field>
-        {state.mode === "live" && (
-          <div className="button-row">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                run(async () => {
-                  setResolveFor("origin");
-                  setPlaceChoices(
-                    await act("/places/resolve", { query: origin }),
-                  );
-                })
-              }
-            >
-              Resolve origin
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                run(async () => {
-                  setResolveFor("destination");
-                  setPlaceChoices(
-                    await act("/places/resolve", {
-                      query: destination || event.event.location || "",
-                    }),
-                  );
-                })
-              }
-            >
-              Resolve destination
-            </Button>
-          </div>
-        )}
-        {placeChoices && (
-          <div className="preview-card">
-            <h3>Choose {resolveFor} · Google Maps</h3>
-            {placeChoices.places.map((p: any) => (
-              <div key={p.placeId}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-auto text-left whitespace-normal mb-2"
-                  onClick={() => {
-                    if (resolveFor === "origin") {
-                      setOrigin(p.address || p.label);
-                      setOriginPlace(p);
-                      setCoords(undefined);
-                    } else {
-                      setDestination(p.address || p.label);
-                      setDestinationPlace(p);
-                    }
-                    setPlaceChoices(undefined);
-                  }}
-                >
-                  {p.label} · {p.address}
-                </Button>
-                <MapsCredits values={p.attributions} />
-              </div>
-            ))}
-            {!placeChoices.places.length && (
-              <p>No matching place. Add city or postal code to the address.</p>
-            )}
-          </div>
-        )}
-        <Choice
-          label="Optional stop"
-          value={stop}
-          onChange={(v) => {
-            setStop(v);
-            setDwell(v === "ev" ? "30" : v === "pharmacy" ? "15" : "10");
-          }}
-          options={[
-            ["none", "Direct route"],
-            ["gas", "Gas"],
-            ["coffee", "Coffee"],
-            ["pharmacy", "Pharmacy"],
-            ["ev", "EV charging"],
-          ]}
-        />
-        {stop !== "none" && (
-          <>
-            <Field label="Minutes at stop">
-              <Input
-                type="number"
-                min="0"
-                max="240"
-                value={dwell}
-                onChange={(e) => setDwell(e.target.value)}
-              />
-            </Field>
-            <Field label="Maximum added minutes">
-              <Input
-                type="number"
-                min="0"
-                max="240"
-                value={maxAdded}
-                onChange={(e) => setMaxAdded(e.target.value)}
-              />
-            </Field>
-          </>
-        )}
-        {stop === "ev" && (
-          <Choice
-            label="EV connector"
-            value={connector}
-            onChange={setConnector}
-            options={[
-              ["EV_CONNECTOR_TYPE_TESLA", "Tesla / NACS"],
-              ["EV_CONNECTOR_TYPE_CCS_COMBO_1", "CCS Combo 1"],
-              ["EV_CONNECTOR_TYPE_CCS_COMBO_2", "CCS Combo 2"],
-              ["EV_CONNECTOR_TYPE_CHADEMO", "CHAdeMO"],
-              ["EV_CONNECTOR_TYPE_J1772", "J1772"],
-            ]}
-          />
-        )}
-        <Field label="Arrival buffer (minutes)">
-          <Input
-            type="number"
-            min="0"
-            value={buffer}
-            onChange={(e) => setBuffer(e.target.value)}
-          />
-        </Field>
-        <Button type="submit">
-          Calculate trip <ArrowRight size={15} />
-        </Button>
-      </form>
-      {geoError && <ErrorBox text={geoError} />}
-      <MapsCredits values={originPlace?.attributions} />
-      <MapsCredits values={destinationPlace?.attributions} />
-      {result && (
-        <div className="trip-results">
-          <p className="muted">{result.message}</p>
-          {result.quotes.map((q: TripQuote) => (
-            <article className="trip-card" key={q.id}>
-              <div className="trip-heading">
-                <div>
-                  <p className="eyebrow">
-                    {q.mode === "fixture"
-                      ? "SYNTHETIC FIXTURE"
-                      : "GOOGLE MAPS ESTIMATE"}
-                  </p>
-                  <h3>{q.stop?.label || "Direct to meeting"}</h3>
-                </div>
-                <Status value={q.fits ? "within limits" : "outside limits"} />
-              </div>
-              <p className="muted">
-                {q.origin.label} → {q.destination.label}
-              </p>
-              <div className="trip-timing">
-                <div>
-                  <small>Leave around</small>
-                  <strong>
-                    {date(q.departureAt, state.config.preferences.timezone)}
-                  </strong>
-                </div>
-                <div>
-                  <small>Driving + stop</small>
-                  <strong>
-                    {Math.round(q.driveSeconds / 60)} + {q.dwellMinutes} min
-                  </strong>
-                </div>
-                <div>
-                  <small>Arrival estimate</small>
-                  <strong>
-                    {date(q.arrivalAt, state.config.preferences.timezone)}
-                  </strong>
-                </div>
-              </div>
-              <p>
-                {Math.ceil(q.addedSeconds / 60)} added minutes ·{" "}
-                {q.bufferMinutes}-minute arrival buffer
-              </p>
-              <p className="muted text-sm">
-                Calculated {date(q.calculatedAt)} ·{" "}
-                {q.trafficAvailable ? "Traffic-aware" : "Traffic unavailable"}
-              </p>
-              {q.warnings.map((w) => (
-                <p className="route-warning" key={w}>
-                  {w}
-                </p>
-              ))}
-              {!!q.availability && (
-                <details>
-                  <summary>Reported EV availability (may change)</summary>
-                  <pre>{JSON.stringify(q.availability, null, 2)}</pre>
-                </details>
-              )}
-              <MapsCredits values={q.attributions} />
-              <div className="button-row">
-                <Button
-                  disabled={!q.fits}
-                  variant="outline"
-                  onClick={() =>
-                    run(async () => {
-                      await act("/trips/" + q.id + "/accept", {});
-                      setAccepted(q.id);
-                    })
-                  }
-                >
-                  {accepted === q.id ? "Trip accepted" : "Accept this trip"}
-                </Button>
-                {accepted === q.id && (
-                  <Button
-                    onClick={() =>
-                      run(async () => {
-                        await act("/reminders", {
-                          eventId: event.id,
-                          purpose: "departure",
-                          rule: "departure",
-                          channel: "slack",
-                          tripId: q.id,
-                          minutes: 0,
-                          expectedEventRevision: q.eventRevision,
-                          expectedTriggerAt: q.departureAt,
-                        });
-                        toast.success("Departure reminder approved");
-                      })
-                    }
-                  >
-                    Approve departure reminder
-                  </Button>
-                )}
-                {q.mode === "live" && (
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      run(async () => {
-                        const data = await act("/trips/" + q.id + "/handoff");
-                        window.open(data.url, "_blank", "noopener,noreferrer");
-                      })
-                    }
-                  >
-                    Open Google Maps <ArrowUpRight size={15} />
-                  </Button>
-                )}
-              </div>
-            </article>
-          ))}
-          {result.attribution === "Google Maps" && (
-            <p className="maps-attribution">
-              Google Maps ·{" "}
-              <a href={state.config.policyUrl} target="_blank" rel="noreferrer">
-                Terms & privacy
-              </a>
-            </p>
-          )}
-        </div>
-      )}
-    </>
-  );
-}
-
-function MapsCredits({
-  values,
-}: {
-  values?: { provider?: string; providerUri?: string }[];
-}) {
-  return values?.length ? (
-    <p className="maps-attribution">
-      {values.map((v, i) =>
-        /^https:\/\//.test(v.providerUri || "") ? (
-          <a key={i} href={v.providerUri} target="_blank" rel="noreferrer">
-            {v.provider || "Data provider"}{" "}
-          </a>
-        ) : (
-          <span key={i}>{v.provider || "Data provider"} </span>
-        ),
-      )}
-    </p>
-  ) : null;
 }
 
 function MessagePanel({
@@ -2202,12 +1766,6 @@ function Connections({
             details: "Independent evidence assessments and intent parsing",
             url: "https://platform.openai.com/api-keys",
           },
-          {
-            name: "Google Maps",
-            key: "maps",
-            details: "Billed Routes and Places; local daily request cap",
-            url: "https://console.cloud.google.com/google/maps-apis",
-          },
         ].map((p) => (
           <section className="panel connection-card" key={p.key}>
             <div className="provider-icon">{p.name.slice(0, 1)}</div>
@@ -2253,13 +1811,12 @@ function Connections({
           <div className="path-box">{state.dataDir}</div>
           <p className="muted">
             Follow docs/SETUP.md for OAuth, Slack scopes, authority IDs,
-            resource selection, and sharing boundaries. Google Maps needs a
-            billed project and the separate public policy URL.
+            resource selection, and sharing boundaries.
           </p>
           <h3 className="mt-6">Resource bindings and sharing rules</h3>
           <p className="muted">
-            Configure exact resource IDs, decision owners, confirmed office
-            addresses, and approved audiences. Put no API keys in this editor.
+            Configure exact resource IDs, decision owners, and approved
+            audiences. Put no API keys in this editor.
           </p>
           <Textarea
             className="config-editor"
@@ -2311,11 +1868,6 @@ function Connections({
               Add meeting template
             </Button>
           </div>
-          <p className="muted text-sm">
-            Maps requests today: {state.mapsUsage.requests} /{" "}
-            {state.config.maxMapsRequestsPerDay}. Provider billing may use
-            multiple SKUs.
-          </p>
         </div>
       </section>
     </>
@@ -2349,16 +1901,6 @@ function Preferences({ state, act }: { state: State; act: Act }) {
         </div>
         <div className="preference">
           <div>
-            <strong>Automatically create departure reminders</strong>
-            <p>Only after you accept a trip with confirmed facts.</p>
-          </div>
-          <Switch
-            checked={p.autoDeparture}
-            onCheckedChange={(v) => setP({ ...p, autoDeparture: v })}
-          />
-        </div>
-        <div className="preference">
-          <div>
             <strong>Pause automatic scanning</strong>
             <p>
               Manual scans remain available. Unobserved changes cannot update
@@ -2381,7 +1923,6 @@ function Preferences({ state, act }: { state: State; act: Act }) {
             [
               ["morningHour", "Tomorrow morning hour"],
               ["afternoonHour", "This afternoon hour"],
-              ["arrivalBuffer", "Arrival buffer (minutes)"],
               ["prepMinutes", "Preparation block (minutes)"],
             ] as const
           ).map(([key, label]) => (

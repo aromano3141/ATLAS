@@ -23,7 +23,6 @@ export interface State {
   dataDir: string;
   scanErrors: any[];
   lastScan?: { at: string };
-  mapsUsage: { requests: number };
   next: any;
 }
 let csrf = "";

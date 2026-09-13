@@ -656,7 +656,6 @@ export class RealityService {
       inbox: this.store.all("inbox"),
       reminders: this.store.all("reminder"),
       drafts: this.store.all("draft"),
-      trips: this.store.all("trip"),
       effects: this.store.effects(),
     };
   }

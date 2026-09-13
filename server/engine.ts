@@ -106,7 +106,7 @@ export class OpenAIEngine implements ReconciliationEngine {
     return this.structured(
       Intent,
       "action_intent",
-      "Parse a personal reminder, preparation, route, or message request. Do not select IDs or execute. Absolute time must include an explicit offset if a full timestamp is supplied; otherwise use day/period fields. For unspecified offsets use null. If ambiguous, give a concise needsClarification. Interpret every/today as selection today; next as next. Stop with unknown for unrelated commands.",
+      "Parse a personal reminder, preparation, or message request. Do not select IDs or execute. Absolute time must include an explicit offset if a full timestamp is supplied; otherwise use day/period fields. For unspecified offsets use null. If ambiguous, give a concise needsClarification. Interpret every/today as selection today; next as next. Stop with unknown for unrelated commands.",
       { text, timezone: this.config().preferences.timezone, now: now() },
     );
   }

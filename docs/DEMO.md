@@ -14,10 +14,8 @@ synthetic provider state in a separate fixture database.
 4. In Adapt, select that meeting. The native 30-minute reminder now corresponds to
    2:30 PM America/Chicago on the future fixture day. Jira remains In Progress.
 5. Preview and approve a prep reminder or free-slot preparation block.
-6. Calculate a synthetic trip with gas. It is explicitly labeled fixture data;
-   Google Maps handoff is disabled. Accept it and preview a departure reminder.
-7. Draft an update to demo-team, save an edit, review/send, and inspect presence.
-8. Run `npm run demo:recovery` to demonstrate journal recovery across a database
+6. Draft an update to demo-team, save an edit, review/send, and inspect presence.
+7. Run `npm run demo:recovery` to demonstrate journal recovery across a database
    reopen with one Calendar mutation and only the remaining Jira write afterward.
 
 The fixture grammar is deliberately deterministic and is not the live AI engine.
@@ -58,7 +56,7 @@ claim the synthetic recovery command is the live recovery acceptance result.
 
 On a future day, create a timed Calendar event at 2 PM in a confirmed Downtown
 Office address, with a 30-minute popup reminder. Explicitly link an in-progress
-Jira presentation issue. Configure the real North Office address or place ID.
+Jira presentation issue. The approved location is read directly from Slack.
 
 The configured owner posts in the selected meeting thread:
 
@@ -70,15 +68,12 @@ The configured owner posts in the selected meeting thread:
    retained. The existing 30-minute offset now triggers at 2:30 PM.
 3. Offer an explicitly approved 1 PM prep reminder on that future day. Preserve
    the Jira issue's deadline and status. Use a fixed timestamp with timezone.
-4. Ask for a driving route with gas. Supply origin and confirm destination. Compare
-   actual added driving plus dwell against the chosen budget and arrival buffer.
-5. Accept the selected stop, review departure reminder, and hand off to Google Maps.
-6. Prepare a factual Slack update. Review the exact audience/text, edit if wanted,
+4. Prepare a factual Slack update. Review the exact audience/text, edit if wanted,
    approve sending, and reread the destination to verify message presence.
-7. Change a relevant fact or allow a quote to expire. Confirm the old draft/trip
-   cannot be used as if it were current. Resolve, recalculate, and review as needed.
+5. Change a relevant fact. Confirm the old draft becomes stale and requires
+   a new review before it can be sent.
 
-Record route calculation timestamps, provider reminder configuration, message
-presence, and any uncertainty. Device delivery, readership, and arrival are not
+Record provider reminder configuration, message
+presence, and any uncertainty. Device delivery and readership are not
 guaranteed. Actual account configuration and these live runs are still required
 before marking the full release's live acceptance complete.

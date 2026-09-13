@@ -43,25 +43,11 @@ const server = serve(
     }
     timer = setInterval(() => {
       for (const r of [live, fixture]) {
-        r.maps.prune();
         void r.reminders
           .tick()
           .catch((e) =>
             r.service.store.log("reminder_tick_failed", { error: e.message }),
           );
-        for (const trip of r.service.store.all("trip")) {
-          const departure = Date.parse(trip.acceptedDepartureAt);
-          if (
-            trip.state === "accepted" &&
-            departure > Date.now() &&
-            departure - Date.now() < 2 * 3600000
-          )
-            r.service.store.enqueue(
-              "travel-refresh",
-              `${trip.id}:${Math.floor(Date.now() / 300000)}`,
-              { tripId: trip.id },
-            );
-        }
       }
     }, 15000);
     try {

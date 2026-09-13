@@ -5,10 +5,8 @@ export const Preferences = z.object({
   timezone: z.string().default("America/Chicago"),
   morningHour: z.number().int().min(0).max(23).default(9),
   afternoonHour: z.number().int().min(0).max(23).default(15),
-  arrivalBuffer: z.number().int().min(0).max(120).default(10),
   prepMinutes: z.number().int().min(5).max(240).default(30),
   maintainRelative: z.boolean().default(true),
-  autoDeparture: z.boolean().default(false),
   defaultChannel: z.enum(["calendar", "slack", "app"]).default("calendar"),
   scanPaused: z.boolean().default(false),
 });
@@ -33,22 +31,6 @@ export const Entity = z
       !!(entity.jiraVersionId && entity.jiraProjectId),
     "Launch reconciliation requires an explicit Jira version and project ID.",
   );
-export const Place = z
-  .object({
-    label: z.string().min(1),
-    placeId: z.string().optional(),
-    address: z.string().optional(),
-    lat: z.number().min(-90).max(90).optional(),
-    lng: z.number().min(-180).max(180).optional(),
-    confirmed: z.literal(true),
-  })
-  .refine(
-    (p) =>
-      !!p.placeId ||
-      !!p.address ||
-      (p.lat !== undefined && p.lng !== undefined),
-    "Choose an address, place ID, or coordinates.",
-  );
 export const Config = z.object({
   operatorSlackId: z.string().default(""),
   approverSlackIds: z.array(z.string()).default([]),
@@ -58,8 +40,6 @@ export const Config = z.object({
   jiraBaseUrl: z.string().default(""),
   jiraEmail: z.string().default(""),
   jiraDatetimeField: z.string().default(""),
-  places: z.record(Place).default({}),
-  savedOrigin: Place.optional(),
   attendeeMappings: z
     .array(
       z.object({
@@ -79,13 +59,10 @@ export const Config = z.object({
     )
     .default([]),
   preferences: Preferences.default({}),
-  policyUrl: z.string().default(""),
   model: z.string().default("gpt-5.6-sol"),
-  maxMapsRequestsPerDay: z.number().int().min(1).max(10000).default(100),
 });
 export type ConfigT = z.infer<typeof Config>;
 export type EntityT = z.infer<typeof Entity>;
-export type PlaceT = z.infer<typeof Place>;
 export type PreferencesT = z.infer<typeof Preferences>;
 export const Evidence = z.object({
   id: z.string(),
@@ -203,12 +180,11 @@ export interface EventRevision {
 }
 export const ReminderInput = z.object({
   eventId: z.string(),
-  purpose: z.enum(["meeting", "preparation", "departure"]),
-  rule: z.enum(["relative", "absolute", "departure"]),
+  purpose: z.enum(["meeting", "preparation"]),
+  rule: z.enum(["relative", "absolute"]),
   minutes: z.number().int().min(0).max(40320).default(30),
   at: z.string().optional(),
   channel: z.enum(["calendar", "slack", "app"]),
-  tripId: z.string().optional(),
 });
 export type ReminderInputT = z.infer<typeof ReminderInput>;
 export interface Reminder extends ReminderInputT {
@@ -250,41 +226,8 @@ export interface MessageDraft {
   createdAt: string;
   receipt?: unknown;
 }
-export interface TripQuote {
-  id: string;
-  eventId: string;
-  eventRevision: string;
-  origin: PlaceT;
-  destination: PlaceT;
-  stop?: PlaceT;
-  category?: string;
-  dwellMinutes: number;
-  bufferMinutes: number;
-  driveSeconds: number;
-  addedSeconds: number;
-  departureAt: string;
-  arrivalAt: string;
-  calculatedAt: string;
-  trafficAvailable: boolean;
-  warnings: string[];
-  fits: boolean;
-  mode: "fixture" | "live";
-  mapsUrl: string;
-  availability?: unknown;
-  attributions?: { provider?: string; providerUri?: string }[];
-}
-export const TripInput = z.object({
-  eventId: z.string(),
-  origin: Place,
-  destination: Place.optional(),
-  stop: z.enum(["gas", "coffee", "pharmacy", "ev"]).optional(),
-  dwellMinutes: z.number().int().min(0).max(240).optional(),
-  bufferMinutes: z.number().int().min(0).max(120).optional(),
-  maxAddedMinutes: z.number().int().min(0).max(240).default(30),
-  connector: z.string().optional(),
-});
 export const Intent = z.object({
-  kind: z.enum(["reminder", "trip", "preparation", "message", "unknown"]),
+  kind: z.enum(["reminder", "preparation", "message", "unknown"]),
   selection: z.enum(["next", "today", "explicit"]),
   eventQuery: z.string().nullable(),
   clientOnly: z.boolean(),
@@ -293,8 +236,6 @@ export const Intent = z.object({
   day: z.enum(["today", "tomorrow", "unspecified"]),
   period: z.enum(["morning", "afternoon", "unspecified"]),
   channel: z.enum(["calendar", "slack", "app"]).nullable(),
-  stop: z.enum(["gas", "coffee", "pharmacy", "ev"]).nullable(),
-  maxAddedMinutes: z.number().nullable(),
   needsClarification: z.string().nullable(),
 });
 export type IntentT = z.infer<typeof Intent>;

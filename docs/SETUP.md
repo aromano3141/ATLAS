@@ -1,6 +1,6 @@
 # Reality Sync setup
 
-The application runs on your computer. The public site contains Terms and Privacy
+The application runs on your computer. The policy site contains Terms and Privacy
 documents only. Keep ATLAS private and use dedicated demo resources.
 
 ## Start locally
@@ -38,13 +38,20 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REFRESH_TOKEN=
 JIRA_API_TOKEN=
-GOOGLE_MAPS_API_KEY=
 ```
 
 Use Connections to save resource bindings. `config.example.json` documents the full
 shape; replace every REPLACE value before saving it. This file contains no secrets.
 Authority and sharing boundaries are explicit operator configuration. Do not grant
 authority based on text inside a Slack message or a user's display name.
+
+For a read-only diagnosis, keep the app running and use
+`npm run scan:read-only -- --entity YOUR_ENTITY_ID`. This command reads the running
+configuration, rejects a different configuration on disk, blocks provider writes,
+and uses an in-memory journal. `read-only-scan.json` is saved outside the repository.
+On Windows, application virtualization can expose two different folders through
+the same LOCALAPPDATA path. Use `REALITY_SYNC_DATA_DIR` to select the original
+application data folder explicitly; do not overwrite it with a setup template.
 
 ## Slack
 
@@ -111,7 +118,7 @@ The demo does not send Calendar attendee email updates (`sendUpdates=none`).
 Conference and unrelated fields survive targeted patches. Conditional Calendar
 updates fail when the ETag changes, including reminder-only edits.
 
-Native Calendar offsets are preserved. Absolute and departure reminders use Slack
+Native Calendar offsets are preserved. Absolute reminders use Slack
 or the app inbox because Calendar offsets follow event time. A preparation block
 is a separate personal Calendar event with a stable application ID and a busy check.
 
@@ -149,29 +156,6 @@ review your organizational policy before connecting real workspace data.
 
 Reference: [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
 
-## Google Maps
-
-Enable Routes API and Places API (New) in a billed Google Cloud project. Restrict
-the server-side API key to these APIs and, where possible, the machine's egress IP.
-Set provider quotas/budgets and the app's `maxMapsRequestsPerDay` (default 100).
-One trip can make several requests because candidates and future departures are
-compared. The local counter is request count, not a billing-price estimate.
-
-Set `policyUrl` to the published policy site listed in `docs/VALIDATION.md`.
-Configure actual confirmed addresses/place IDs for office names in `places`.
-Manual origins or permitted geolocation are supported; permission denial leaves
-address entry available. Ambiguous place searches require a specific selection.
-
-Navigation supports driving and one stop. For EV, supply connector and planned
-duration; unavailable connector data can yield no suitable stop. Stop hours are
-current/unknown, not a guarantee for a future visit. Do not use fixture route times
-for travel. Quotes expire in five minutes; provider data stays transient. Accepted
-trips keep permitted IDs and user decisions for bounded departure refresh.
-
-References: [Routes billing](https://developers.google.com/maps/documentation/routes/usage-and-billing),
-[Places policies](https://developers.google.com/maps/documentation/places/web-service/policies),
-[driving departure behavior](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes).
-
 ## Verification and recovery
 
 ```powershell
@@ -180,6 +164,7 @@ npm test
 npm run build
 npm run demo:recovery
 npm run live:check
+npm run scan:read-only -- --entity YOUR_ENTITY_ID
 ```
 
 `live:check` is read-only and returns a nonzero exit status until configured. Its report stays in the

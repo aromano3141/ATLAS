@@ -721,58 +721,6 @@ code {
 .prep-panel > .field {
   margin-top: 1.5rem;
 }
-.travel-form {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.trip-card {
-  border: 1px solid var(--border);
-  border-radius: 0.7rem;
-  padding: 1.3rem;
-  margin: 1rem 0;
-}
-.trip-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: start;
-}
-.trip-timing {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin: 1.3rem 0;
-  padding: 1rem 0;
-  border-block: 1px solid var(--border);
-}
-.trip-timing small {
-  display: block;
-  font-size: 0.75rem;
-  color: #5e7793;
-  margin-bottom: 0.5rem;
-}
-.trip-timing strong {
-  font-size: 1rem;
-  font-weight: 600;
-}
-.trip-card > p {
-  font-size: 0.875rem;
-  margin: 0.5rem 0;
-}
-.route-warning {
-  color: #8a621e;
-  font-size: 0.8rem !important;
-}
-.maps-attribution {
-  font-weight: 600;
-  font-size: 1rem;
-  color: #3d4e67;
-  margin: 1.5rem 0;
-}
-.maps-attribution a {
-  font-size: 0.8rem;
-  text-decoration: underline;
-  font-weight: 400;
-}
 .draft-card {
   border: 1px solid var(--border);
   border-radius: 0.65rem;
@@ -929,15 +877,11 @@ code {
   .connection-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  .travel-form {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 @media (max-width: 700px) {
   .adapt-grid,
   .form-grid,
-  .connection-grid,
-  .trip-timing {
+  .connection-grid {
     grid-template-columns: 1fr;
   }
   .panel-body,
@@ -960,9 +904,6 @@ code {
   }
   .field-name {
     grid-column: 1/-1;
-  }
-  .trip-heading {
-    flex-wrap: wrap;
   }
   .approval-change pre {
     font-size: 0.7rem;

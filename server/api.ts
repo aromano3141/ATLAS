@@ -5,7 +5,7 @@ import { timingSafeEqual, randomBytes } from "node:crypto";
 import type { RealityService } from "./service.ts";
 import { Messages } from "./messages.ts";
 import { Reminders } from "./reminders.ts";
-import { Maps } from "./maps.ts";
+
 import { Intents } from "./intents.ts";
 import { OpenAIEngine } from "./engine.ts";
 import { Worker } from "./worker.ts";
@@ -17,27 +17,15 @@ import { eventStart, nextMeetings, meetingKind } from "./time.ts";
 export function runtime(service: RealityService) {
   const messages = new Messages(service),
     reminders = new Reminders(service),
-    maps = new Maps(service),
     intents = new Intents(
       service,
       service.engine instanceof OpenAIEngine ? service.engine : undefined,
     ),
     worker = new Worker(service);
-  reminders.freshDeparture = (tripId, eventId) =>
-    maps.departure(tripId, eventId);
   worker.handlers.set("message", (p) => messages.send(p.draftId, p.revision));
   worker.handlers.set("reminder", (p) => reminders.schedule(p.id, p.revision));
   worker.handlers.set("block", (p) => reminders.createBlock(p.blockId));
-  worker.handlers.set("travel-refresh", async (p) => {
-    const q = await maps.refreshAccepted(p.tripId);
-    assert(
-      q.fits,
-      "Refreshed route exceeds the accepted timing limits. Review the trip.",
-    );
-    await reminders.refreshDeparture(p.tripId, q.departureAt);
-  });
   service.onDependency = async (eventId) => {
-    maps.invalidate(eventId);
     for (const d of service.store
       .all("draft")
       .filter(
@@ -51,15 +39,6 @@ export function runtime(service: RealityService) {
       }
     }
     await reminders.maintain(eventId);
-    for (const trip of service.store
-      .all("trip")
-      .filter((t) => t.eventId === eventId && t.state === "stale"))
-      if (!service.currentEvent(eventId).unresolved.length)
-        service.store.enqueue(
-          "travel-refresh",
-          `${trip.id}:${service.currentEvent(eventId).revision}`,
-          { tripId: trip.id },
-        );
   };
   const updateDependencies = service.onDependency;
   service.onDependency = async (eventId) => {
@@ -87,7 +66,7 @@ export function runtime(service: RealityService) {
       });
     }
   };
-  return { service, messages, reminders, maps, intents, worker };
+  return { service, messages, reminders, intents, worker };
 }
 export type Runtime = ReturnType<typeof runtime>;
 const origins = new Set(["http://localhost:5173", "http://127.0.0.1:5173"]);
@@ -173,7 +152,6 @@ export function createApi(
       connections: r.service.store.get("meta", "connections"),
       credentials: r.service.providers.mode === "fixture" ? {} : configured(),
       dataDir,
-      mapsUsage: r.maps.usage(),
       next: nextMeetings(
         r.service.events(),
         r.service.config().preferences.timezone,
@@ -305,43 +283,6 @@ export function createApi(
       ),
       202,
     );
-  });
-  app.post("/api/trips", async (c) =>
-    c.json(await getRuntime(c).maps.calculate(await c.req.json())),
-  );
-  app.post("/api/places/resolve", async (c) => {
-    const b = z
-      .object({ query: z.string().min(3).max(300) })
-      .parse(await c.req.json());
-    return c.json(await getRuntime(c).maps.resolvePlace(b.query));
-  });
-  app.post("/api/trips/:id/accept", async (c) => {
-    const r = getRuntime(c),
-      q = await r.maps.accept(c.req.param("id"));
-    if (r.service.config().preferences.autoDeparture)
-      await r.reminders.approve(
-        {
-          eventId: q.eventId,
-          purpose: "departure",
-          rule: "departure",
-          channel: "slack",
-          tripId: q.id,
-          minutes: 0,
-        },
-        q.eventRevision,
-      );
-    return c.json(q);
-  });
-  app.post("/api/trips/:id/refresh", async (c) =>
-    c.json(await getRuntime(c).maps.refreshAccepted(c.req.param("id"))),
-  );
-  app.get("/api/trips/:id/handoff", (c) => {
-    const q = getRuntime(c).maps.get(c.req.param("id")).quote;
-    assert(
-      q.mode === "live",
-      "Fixture routes cannot be used for real navigation.",
-    );
-    return c.json({ url: q.mapsUrl });
   });
   app.post("/api/drafts", async (c) => {
     const b = z

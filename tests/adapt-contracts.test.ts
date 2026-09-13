@@ -5,7 +5,6 @@ import { FixtureProviders, fixtureConfig } from "../server/fixtures.ts";
 import { FixtureEngine, resolveClaims } from "../server/engine.ts";
 import { RealityService } from "../server/service.ts";
 import { runtime } from "../server/api.ts";
-import { Maps } from "../server/maps.ts";
 import { ProviderError } from "../server/providers.ts";
 import { hash, now } from "../server/util.ts";
 async function prepared() {
@@ -238,118 +237,6 @@ test("verified-action changes invalidate an otherwise unchanged message draft", 
   );
   r.store.close();
 });
-test("Google route contract compares real legs in a mocked provider, labels fallback traffic and unknown hours", async () => {
-  const r = await prepared();
-  Object.defineProperty(r.providers, "mode", { value: "live" });
-  const calls: any[] = [];
-  class MockMaps extends Maps {
-    async api(endpoint: string, body: any, fields: string): Promise<any> {
-      calls.push({ endpoint, body, fields });
-      if (endpoint.includes("places"))
-        return {
-          places: [
-            {
-              id: "closed",
-              displayName: { text: "Closed" },
-              currentOpeningHours: { openNow: false },
-            },
-            {
-              id: "open",
-              displayName: { text: "Open" },
-              formattedAddress: "Mock stop",
-            },
-          ],
-        };
-      return {
-        routes: [
-          {
-            duration:
-              body.destination.placeId === "north" &&
-              body.origin.placeId !== "open"
-                ? "600s"
-                : "420s",
-            polyline: { encodedPolyline: "mock" },
-          },
-        ],
-        fallbackInfo: { reason: "mock" },
-      };
-    }
-  }
-  const maps = new MockMaps(r.service);
-  const result = await maps.calculate({
-    eventId: "meeting",
-    origin: { label: "Origin", lat: 40, lng: -80, confirmed: true },
-    destination: { label: "North", placeId: "north", confirmed: true },
-    stop: "gas",
-    dwellMinutes: 10,
-    maxAddedMinutes: 30,
-  });
-  assert.equal(result.quotes.length, 1);
-  assert.equal(result.quotes[0].stop?.placeId, "open");
-  assert.equal(result.quotes[0].driveSeconds, 840);
-  assert.equal(result.quotes[0].addedSeconds, 840);
-  assert.equal(result.quotes[0].trafficAvailable, false);
-  assert.ok(
-    result.quotes[0].warnings.some((w) => w.includes("hours are unknown")),
-  );
-  assert.ok(
-    calls
-      .filter((c) => c.endpoint.includes("routes"))
-      .every((c) => c.body.departureTime && !c.body.arrivalTime),
-  );
-  r.store.close();
-});
-test("EV compatibility and unknown availability remain explicit in mocked provider results", async () => {
-  const r = await prepared();
-  Object.defineProperty(r.providers, "mode", { value: "live" });
-  class MockMaps extends Maps {
-    async api(): Promise<any> {
-      return {
-        places: [
-          { id: "unknown", evChargeOptions: {} },
-          {
-            id: "compatible",
-            evChargeOptions: {
-              connectorAggregation: [{ type: "EV_CONNECTOR_TYPE_TESLA" }],
-            },
-          },
-        ],
-      };
-    }
-  }
-  const maps = new MockMaps(r.service);
-  const candidates = await maps.search("mock", "ev", "EV_CONNECTOR_TYPE_TESLA");
-  assert.deepEqual(
-    candidates.map((p: any) => p.id),
-    ["compatible"],
-  );
-  assert.equal(
-    candidates[0].evChargeOptions.connectorAggregation[0].availableCount,
-    undefined,
-  );
-  r.store.close();
-});
-test("unavailable routing fails without fabricated durations", async () => {
-  const r = await prepared();
-  Object.defineProperty(r.providers, "mode", { value: "live" });
-  class FailingMaps extends Maps {
-    async api(): Promise<any> {
-      throw new Error("Provider unavailable");
-    }
-  }
-  const maps = new FailingMaps(r.service);
-  await assert.rejects(
-    maps.calculate({
-      eventId: "meeting",
-      origin: { label: "Origin", lat: 40, lng: -80, confirmed: true },
-      destination: { label: "North", placeId: "north", confirmed: true },
-    }),
-    /Provider unavailable/,
-  );
-  assert.equal(maps.quotes.size, 0);
-  r.store.close();
-});
-
 test("Calendar offset replacement retains native offsets without accumulating managed ones", async () => {
   const r = await prepared();
   let reminder = await r.reminders.approve({

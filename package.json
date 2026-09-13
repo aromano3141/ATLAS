@@ -15,7 +15,8 @@
     "build": "node scripts/build.mjs",
     "live:check": "tsx scripts/live-check.ts",
     "demo:recovery": "tsx scripts/recovery-demo.ts",
-    "test:http": "tsx scripts/http-smoke.ts"
+    "test:http": "tsx scripts/http-smoke.ts",
+    "scan:read-only": "tsx scripts/scan-read-only.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",

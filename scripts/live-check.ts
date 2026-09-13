@@ -18,19 +18,13 @@ const report: {
   configured: ready,
   checks: [],
   acceptance:
-    "PENDING: no live repair, recovery, route or send is performed by this read-only command.",
+    "PENDING: no live repair, recovery or send is performed by this read-only command.",
 };
-if (
-  !ready.slack ||
-  !ready.calendar ||
-  !ready.jira ||
-  !ready.openai ||
-  !ready.maps ||
-  !config.entities.length
-) {
+if (!ready.slack || !ready.calendar || !ready.jira || !config.entities.length) {
   report.checks.push({
     status: "not_configured",
-    message: "Complete secrets.env and Connections resource bindings first.",
+    message:
+      "Configure Slack, Calendar, Jira, and Connections resource bindings first. OpenAI is needed for investigation, not this provider-read check.",
   });
 } else {
   report.checks.push(...(await provider.health()));

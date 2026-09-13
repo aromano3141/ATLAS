@@ -50,6 +50,5 @@ export function configured() {
       process.env.GOOGLE_REFRESH_TOKEN
     ),
     jira: !!process.env.JIRA_API_TOKEN,
-    maps: !!process.env.GOOGLE_MAPS_API_KEY,
   };
 }

@@ -23,7 +23,6 @@ import {
   nextMeetings,
   meetingKind,
 } from "../server/time.ts";
-import { mapsUrl, stopComparison } from "../server/maps.ts";
 import { verifiedSummary } from "../server/messages.ts";
 import { now, hash, id } from "../server/util.ts";
 import type { ClaimT, EventRevision, Reminder } from "../server/contracts.ts";
@@ -447,54 +446,6 @@ test("uncertain sends do not repeat; stale drafts cannot send", async () => {
   await assert.rejects(
     r.messages.approveSend(d2.id, d2.revision, "operator"),
     /event changed/,
-  );
-  r.store.close();
-});
-test("detour includes dwell, route handoff is encoded, stale quotes cannot schedule", async () => {
-  assert.equal(stopComparison(600, 780, 10, 10, 0, 0).fits, false);
-  assert.equal(stopComparison(600, 780, 10, 20, 0, 0).addedSeconds, 780);
-  const url = mapsUrl(
-    { label: "A & B", address: "A & B", confirmed: true },
-    { label: "North", placeId: "p-id", confirmed: true },
-  );
-  assert.match(url, /destination_place_id=p-id/);
-  assert.match(url, /origin=A\+%26\+B/);
-  const r = await repaired();
-  const result = await r.maps.calculate({
-    eventId: "meeting",
-    origin: { label: "Origin", address: "Fixture origin", confirmed: true },
-    stop: "gas",
-    maxAddedMinutes: 30,
-  });
-  const quote = result.quotes[0];
-  assert.equal(quote.mode, "fixture");
-  await r.maps.accept(quote.id);
-  r.maps.quotes.get(quote.id)!.expires = Date.now() - 1;
-  await assert.rejects(r.maps.departure(quote.id, "meeting"), /expired/);
-  assert.equal(r.store.get("trip", quote.id).driveSeconds, undefined);
-  assert.equal(r.store.get("trip", quote.id).availability, undefined);
-  r.store.close();
-});
-test("maps refuses missing origin, disputed destination, and missing EV requirements", async () => {
-  const r = await repaired();
-  await assert.rejects(r.maps.calculate({ eventId: "meeting" }));
-  const e = r.service.currentEvent("meeting");
-  r.store.put("event", "meeting", { ...e, unresolved: ["location"] });
-  await assert.rejects(
-    r.maps.calculate({
-      eventId: "meeting",
-      origin: { label: "O", address: "O", confirmed: true },
-    }),
-    /destination/,
-  );
-  r.store.put("event", "meeting", e);
-  await assert.rejects(
-    r.maps.calculate({
-      eventId: "meeting",
-      origin: { label: "O", address: "O", confirmed: true },
-      stop: "ev",
-    }),
-    /connector/,
   );
   r.store.close();
 });

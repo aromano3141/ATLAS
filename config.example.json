@@ -33,13 +33,6 @@
       "clientMeeting": true
     }
   ],
-  "places": {
-    "North Office": {
-      "label": "North Office",
-      "address": "REPLACE_CONFIRMED_REAL_ADDRESS",
-      "confirmed": true
-    }
-  },
   "attendeeMappings": [],
   "sharingRules": [
     {
@@ -57,14 +50,10 @@
     "timezone": "America/Chicago",
     "morningHour": 9,
     "afternoonHour": 15,
-    "arrivalBuffer": 10,
     "prepMinutes": 30,
     "maintainRelative": true,
-    "autoDeparture": false,
     "defaultChannel": "calendar",
     "scanPaused": false
   },
-  "model": "gpt-5.6-sol",
-  "policyUrl": "https://reality-sync-policies-atlas.zen-monk.chatgpt.site",
-  "maxMapsRequestsPerDay": 100
+  "model": "gpt-5.6-sol"
 }

@@ -41,13 +41,6 @@ export function fixtureConfig(): ConfigT {
       { entityId: "launch", audience: "demo-team", allowJira: true },
       { entityId: "meeting", audience: "demo-team", allowJira: true },
     ],
-    places: {
-      "North Office": {
-        label: "North Office (fixture)",
-        address: "Synthetic demo destination",
-        confirmed: true,
-      },
-    },
     model: "fixture",
   });
 }
