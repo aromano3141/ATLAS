@@ -1,0 +1,35 @@
+{
+  "display_information": {
+    "name": "Reality Sync",
+    "description": "Review conflicting facts and adapt approved reminders.",
+    "background_color": "#12253f"
+  },
+  "features": {
+    "bot_user": { "display_name": "Reality Sync", "always_online": false }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "channels:history",
+        "channels:read",
+        "groups:history",
+        "groups:read",
+        "users:read",
+        "users:read.email",
+        "chat:write",
+        "im:write",
+        "im:history",
+        "im:read"
+      ],
+      "user": ["channels:history", "groups:history"]
+    }
+  },
+  "settings": {
+    "socket_mode_enabled": true,
+    "interactivity": { "is_enabled": true },
+    "event_subscriptions": {
+      "bot_events": ["message.channels", "message.groups", "message.im"]
+    },
+    "org_deploy_enabled": false
+  }
+}

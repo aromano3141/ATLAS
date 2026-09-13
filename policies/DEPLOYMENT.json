@@ -1,0 +1,10 @@
+{
+  "scope": "Policy documents only; the application is local",
+  "url": "https://reality-sync-policies-atlas.zen-monk.chatgpt.site",
+  "project_id": "appgprj_6aa6f8c96b8c8191b1905b221927bfae",
+  "version_id": "appgprj_6aa6f8c96b8c8191b1905b221927bfae~appgver_d10097cf254081919e58d99f4f00fdd6",
+  "deployment_id": "appgdep_6aa6fa6a6c30819186f26ee51a9fbf94",
+  "access": "public",
+  "source_commit": "0bdcd5b6a24c1eed0d96d5851bbf55ea6569dbf8",
+  "status": "succeeded"
+}

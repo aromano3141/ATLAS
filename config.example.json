@@ -1,0 +1,70 @@
+{
+  "operatorSlackId": "U_REPLACE_OPERATOR",
+  "approverSlackIds": ["U_REPLACE_OPERATOR"],
+  "calendarIds": ["REPLACE_DEDICATED_CALENDAR_ID"],
+  "slackChannelIds": ["C_REPLACE_DEMO_CHANNEL"],
+  "jiraBaseUrl": "https://YOUR-TENANT.atlassian.net",
+  "jiraEmail": "operator@example.com",
+  "jiraDatetimeField": "",
+  "entities": [
+    {
+      "id": "atlas-launch",
+      "title": "Atlas launch",
+      "kind": "launch",
+      "calendarId": "REPLACE_DEDICATED_CALENDAR_ID",
+      "eventId": "REPLACE_LAUNCH_EVENT_ID",
+      "slackChannelId": "C_REPLACE_DEMO_CHANNEL",
+      "threadTs": "REPLACE_THREAD_TS",
+      "authorityUserIds": ["U_REPLACE_DECISION_OWNER"],
+      "jiraVersionId": "REPLACE_VERSION_ID",
+      "jiraProjectId": "REPLACE_PROJECT_ID",
+      "clientMeeting": false
+    },
+    {
+      "id": "client-meeting",
+      "title": "Client meeting",
+      "kind": "meeting",
+      "calendarId": "REPLACE_DEDICATED_CALENDAR_ID",
+      "eventId": "REPLACE_MEETING_EVENT_ID",
+      "slackChannelId": "C_REPLACE_DEMO_CHANNEL",
+      "threadTs": "REPLACE_MEETING_THREAD_TS",
+      "authorityUserIds": ["U_REPLACE_DECISION_OWNER"],
+      "issueKey": "DEMO-42",
+      "clientMeeting": true
+    }
+  ],
+  "places": {
+    "North Office": {
+      "label": "North Office",
+      "address": "REPLACE_CONFIRMED_REAL_ADDRESS",
+      "confirmed": true
+    }
+  },
+  "attendeeMappings": [],
+  "sharingRules": [
+    {
+      "entityId": "atlas-launch",
+      "audience": "C_REPLACE_DEMO_CHANNEL",
+      "allowJira": true
+    },
+    {
+      "entityId": "client-meeting",
+      "audience": "C_REPLACE_DEMO_CHANNEL",
+      "allowJira": true
+    }
+  ],
+  "preferences": {
+    "timezone": "America/Chicago",
+    "morningHour": 9,
+    "afternoonHour": 15,
+    "arrivalBuffer": 10,
+    "prepMinutes": 30,
+    "maintainRelative": true,
+    "autoDeparture": false,
+    "defaultChannel": "calendar",
+    "scanPaused": false
+  },
+  "model": "gpt-5.6-sol",
+  "policyUrl": "https://reality-sync-policies-atlas.zen-monk.chatgpt.site",
+  "maxMapsRequestsPerDay": 100
+}

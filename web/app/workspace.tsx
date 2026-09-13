@@ -1,82 +1,2416 @@
 "use client";
-import {useCallback,useEffect,useState} from 'react';
-import {Activity,ArrowRight,ArrowUpRight,Bell,BookOpen,Check,CheckCircle2,ChevronRight,Clock,History,Link2,Loader2,MapPin,MessageSquare,Play,Plus,Radio,RefreshCw,Settings2,ShieldCheck,Sparkles,TriangleAlert} from 'lucide-react';
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {Textarea} from '@/components/ui/textarea';
-import {Label} from '@/components/ui/label';
-import {Switch} from '@/components/ui/switch';
-import {Tabs,TabsContent,TabsList,TabsTrigger} from '@/components/ui/tabs';
-import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@/components/ui/dialog';
-import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
-import {Sidebar,SidebarContent,SidebarFooter,SidebarHeader,SidebarInset,SidebarMenu,SidebarMenuButton,SidebarMenuItem,SidebarProvider,SidebarTrigger} from '@/components/ui/sidebar';
-import {Empty,EmptyDescription,EmptyHeader,EmptyTitle} from '@/components/ui/empty';
-import {Skeleton} from '@/components/ui/skeleton';
-import {Toaster} from '@/components/ui/sonner';
-import {toast} from 'sonner';
-import {api,date,pretty,type Mode,type State} from '@/lib/api';
-import type {EventRevision,RepairPlan,MessageDraft,TripQuote} from '../../server/contracts';
+import { useCallback, useEffect, useState } from "react";
+import {
+  Activity,
+  ArrowRight,
+  ArrowUpRight,
+  Bell,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  History,
+  Link2,
+  Loader2,
+  MapPin,
+  MessageSquare,
+  Play,
+  Plus,
+  Radio,
+  RefreshCw,
+  Settings2,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
+import { api, date, pretty, type Mode, type State } from "@/lib/api";
+import type {
+  EventRevision,
+  RepairPlan,
+  MessageDraft,
+  TripQuote,
+} from "../../server/contracts";
 
-const nav=[{icon:Activity,label:'Reality Health'},{icon:BookOpen,label:'Evidence Blackboard'},{icon:History,label:'History'},{icon:Bell,label:'Inbox'},{icon:Link2,label:'Connections'},{icon:Settings2,label:'Preferences'}];
-type Act=(path:string,body?:unknown,method?:string)=>Promise<any>;
-export function Status({value}:{value:string}){return <span className={'tag status-'+value.replaceAll(' ','-')}><span className="status-dot"/>{value.replaceAll('_',' ')}</span>}
-function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="field"><span>{label}</span>{children}</label>}
-function Choice({value,onChange,options,label}:{value:string;onChange:(v:string)=>void;options:[string,string][];label:string}){return <Field label={label}><Select value={value} onValueChange={onChange}><SelectTrigger className="w-full"><SelectValue/></SelectTrigger><SelectContent>{options.map(([v,l])=><SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></Field>}
-function Blank({title,description,children}:{title:string;description:string;children?:React.ReactNode}){return <Empty className="py-12"><EmptyHeader><Radio className="empty-icon" size={34}/><EmptyTitle>{title}</EmptyTitle><EmptyDescription>{description}</EmptyDescription></EmptyHeader>{children}</Empty>}
-function ErrorBox({text}:{text:string}){return <div className="notice danger" role="alert"><TriangleAlert size={18}/><span>{text}</span></div>}
-export default function Workspace(){const[mode,setMode]=useState<Mode>('live'),[view,setView]=useState('Reality Health'),[state,setState]=useState<State>(),[error,setError]=useState(''),[busy,setBusy]=useState(false),[selected,setSelected]=useState<string>(),[detail,setDetail]=useState<any>(),[confirm,setConfirm]=useState<RepairPlan>(),[history,setHistory]=useState<any[]>([]);
-  const refresh=useCallback(async()=>{try{const s=await api<State>('/state',mode);setState(s);setError('');}catch(e){setError((e as Error).message);}},[mode]);
-  useEffect(()=>{setState(undefined);setSelected(undefined);setDetail(undefined);void refresh();const t=setInterval(()=>void refresh(),2500);return()=>clearInterval(t);},[refresh]);
-  useEffect(()=>{if(selected)void api('/plans/'+selected,mode).then(setDetail).catch(e=>setError(e.message));},[selected,state?.runs.map(r=>r.state).join(),mode]);
-  useEffect(()=>{if(view==='History')void api<any[]>('/history',mode).then(setHistory).catch(e=>setError(e.message));},[view,state?.lastScan?.at,state?.runs.map(r=>r.state).join(),mode]);
-  const act:Act=async(path,body,method)=>{setBusy(true);setError('');try{const result=await api(path,mode,body,method);await refresh();return result;}catch(e){setError((e as Error).message);toast.error((e as Error).message);throw e;}finally{setBusy(false);}};
-  const run=(fn:()=>Promise<any>)=>void fn().catch(()=>{});
-  useEffect(()=>{const context=(document as any).modelContext;if(!context?.registerTool)return;const lifecycle=new AbortController();const tool=(definition:any)=>Promise.resolve(context.registerTool(definition,{signal:lifecycle.signal})).catch(()=>{});
-    void tool({name:'inspect_reality_conflicts',description:'Read current conflicts, proposed repairs, and verification state. Does not approve or execute.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute:async(input:any)=>{if(Object.keys(input||{}).length)throw new Error('No arguments accepted.');const s=await api<State>('/state',mode);setState(s);return{mode,plans:s.plans,runs:s.runs};}});
-    void tool({name:'start_reality_scan',description:'Queue a source scan and update the visible workspace. Does not approve repairs.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:true},execute:async(input:any)=>{if(Object.keys(input||{}).length)throw new Error('No arguments accepted.');const result=await api('/scan',mode,{});await refresh();return result;}});
-    void tool({name:'open_repair_review',description:'Open evidence and exact proposed changes for human review.',inputSchema:{type:'object',properties:{planId:{type:'string'}},required:['planId'],additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute:async(input:any)=>{if(!input||typeof input.planId!=='string'||Object.keys(input).some(k=>k!=='planId'))throw new Error('A planId is required.');const result=await api('/plans/'+encodeURIComponent(input.planId),mode);setSelected(input.planId);setDetail(result);setView('Reality Health');return{planId:input.planId,status:result.run?.state||result.plan.status};}});return()=>lifecycle.abort();},[mode,refresh]);
-  const active=state?.plans.filter(p=>p.status==='review'&&!state.runs.some(r=>r.planId===p.id&&r.state==='verified'))||[];const connected=mode==='live'?state?.connections?.filter(c=>c.connected).length||0:0;
-  return <SidebarProvider><Sidebar><SidebarHeader className="brand"><Radio size={28}/><span>Reality Sync<small>WORKSPACE / LOCAL</small></span></SidebarHeader><SidebarContent className="px-3 py-6"><SidebarMenu>{nav.map(n=><SidebarMenuItem key={n.label}><SidebarMenuButton isActive={view===n.label} onClick={()=>setView(n.label)} className="h-11 px-3 text-sm"><n.icon/><span>{n.label}</span>{n.label==='Inbox'&&!!state?.inbox.length&&<span className="nav-count">{state.inbox.length}</span>}</SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarContent><SidebarFooter className="p-5"><div className="approval-note"><ShieldCheck size={18}/><span>Human approval<br/><small>Every repair. Every shared message.</small></span></div></SidebarFooter></Sidebar><SidebarInset><header className="topbar"><SidebarTrigger/><span>Personal workspace</span><div className="mode-switch"><Button size="sm" variant={mode==='live'?'secondary':'ghost'} onClick={()=>setMode('live')}>Live connections</Button><Button size="sm" variant={mode==='fixture'?'secondary':'ghost'} onClick={()=>setMode('fixture')}>Fixture workspace</Button></div></header><main className="workspace">
-    {mode==='fixture'&&<div className="notice fixture"><Play size={17}/><span><strong>Fixture workspace.</strong> Synthetic evidence and provider state. Actions here do not contact external services.</span></div>}
-    <div className="page-heading"><div><p className="eyebrow">RECONCILE / VERIFY / ADAPT</p><h1>{view}</h1><p className="subtitle">{view==='Reality Health'?'Review what changed. Keep the rest of your day in sync.':view==='Evidence Blackboard'?'Independent assessments, original evidence, and unresolved questions.':view==='History'?'Approvals, attempts, and what the providers actually returned.':view==='Connections'?'Connect dedicated accounts and define who can establish a fact.':view==='Preferences'?'Choose how approved changes should affect your day.':'Reminder state and items that need your attention.'}</p></div>{view==='Reality Health'&&<Button disabled={busy||!state?.config.entities.length} onClick={()=>run(()=>act('/scan',{}))}><RefreshCw size={16} className={busy?'animate-spin':''}/>Scan now</Button>}</div>
-    {error&&<ErrorBox text={error}/>}{!state?<div className="space-y-5"><Skeleton className="h-28 w-full"/><Skeleton className="h-72 w-full"/></div>:<>
-    {(view==='Reality Health'||view==='Evidence Blackboard')&&<><div className="metrics">{[['Connected apps',mode==='fixture'?'Fixture':`${connected} / 3`,state.lastScan?`Last scan ${date(state.lastScan.at,state.config.preferences.timezone)}`:'No live checks yet'],['Needs review',String(active.length),'Exact changes wait for your decision'],['Verified repairs',String(state.runs.filter(r=>r.state==='verified').length),mode==='fixture'?'Fixture readbacks only':'Confirmed by provider rereads']].map(([l,v,d])=><section className="metric" key={l}><p>{l}</p><strong>{v}</strong><small>{d}</small></section>)}</div>
-    {state.scanErrors.filter(e=>e.error).map(e=><ErrorBox key={e.entityId} text={`${e.entityId}: ${e.error}`}/>)}
-    {!state.plans.length?<section className="panel"><div className="panel-heading"><h2>Your reconciliation queue</h2><Status value="awaiting setup"/></div><Blank title={state.config.entities.length?'Ready for the first scan':'Connect your source applications'} description={state.config.entities.length?'Scan the configured records to investigate their evidence and prepare a review.':'Add Slack, Google Calendar, and Jira credentials locally. You can explore the separate fixture workspace while setting up.'}><Button onClick={()=>state.config.entities.length?run(()=>act('/scan',{})):setView('Connections')}>{state.config.entities.length?'Run first scan':'Open Connections'}<ArrowRight size={16}/></Button></Blank></section>:<div className="review-layout"><section className="panel queue"><div className="panel-heading"><h2>Reconciliations</h2><span className="muted text-sm">{state.plans.length} records</span></div>{state.plans.map(p=><button className={'queue-row '+(selected===p.id?'selected':'')} key={p.id} onClick={()=>setSelected(p.id)}><div className="queue-icon">{p.status==='abstained'?<TriangleAlert size={19}/>:<Link2 size={19}/>}</div><div><strong>{state.config.entities.find(e=>e.id===p.entityId)?.title||p.entityId}</strong><p>{p.actions.length?`${p.actions.length} proposed corrections`:p.unresolved.length?'Needs clarification':'Records agree'}</p><Status value={state.runs.find(r=>r.planId===p.id)?.state||p.status}/></div><ChevronRight size={17}/></button>)}</section><section className="detail-column">{selected&&detail?<RepairDetail data={detail} state={state} onApprove={()=>setConfirm(detail.plan)} onDecision={decision=>run(()=>act('/plans/'+selected+'/decision',{decision}))} onResume={()=>run(()=>act('/plans/'+selected+'/resume',{}))} mode={mode} act={act} blackboard={view==='Evidence Blackboard'}/>:<div className="panel"><Blank title="Choose a reconciliation" description="Read the evidence and exact before-and-after changes before deciding."/></div>}</section></div>}
-    {view==='Reality Health'&&!!state.events.length&&<section className="panel"><div className="panel-heading"><h2>Adapt your day</h2><span className="muted text-sm">{state.config.preferences.timezone}</span></div><div className="panel-body"><ActionBox mode={mode} act={act} events={state.events} onSelect={eventId=>{const p=state.plans.find(p=>p.entityId===eventId);if(p)setSelected(p.id);}}/><Adapt state={state} mode={mode} act={act}/></div></section>}
-    <section className="workflow-strip">{['Detect','Investigate','Reconcile','Approve','Act','Verify','Adapt'].map((s,i)=><div key={s}><span>{i===3?<ShieldCheck size={15}/>:i===5?<Check size={15}/>:String(i+1).padStart(2,'0')}</span>{s}</div>)}</section></>}
-    {view==='Connections'&&<Connections state={state} mode={mode} act={act}/>}
-    {view==='Preferences'&&<Preferences state={state} act={act}/>}
-    {view==='Inbox'&&<section className="panel"><div className="panel-heading"><h2>Notifications and reminders</h2><span className="tag">{state.inbox.length}</span></div>{state.inbox.length?state.inbox.map((n,i)=><div className="inbox-row" key={n.id||i}><Bell size={19}/><div><strong>{n.message}</strong><p>{n.triggerAt?date(n.triggerAt,state.config.preferences.timezone):date(n.at||n.updatedAt)}</p>{n.error&&<p className="error-text">{n.error}</p>}</div>{n.state&&<Status value={n.state}/>}</div>):<Blank title="You're all caught up" description="Reminder settings, missed items, and maintenance issues will appear here."/>}</section>}
-    {view==='History'&&<><section className="panel"><div className="panel-heading"><h2>Activity journal</h2><span className="tag">{mode}</span></div>{history.length?history.map(h=><details className="journal-entry" key={h.id}><summary><span className="journal-dot"/><strong>{h.kind.replaceAll('_',' ')}</strong><time>{date(h.at,state.config.preferences.timezone)}</time></summary><pre>{JSON.stringify(h.body,null,2)}</pre></details>):<Blank title="No activity yet" description="Scans, approvals, provider attempts, and verification receipts appear here."/>}</section><section className="panel"><div className="panel-heading"><h2>Durable jobs</h2></div>{state.jobs.map(j=><div className="inbox-row" key={j.id}><div><strong>{j.kind}</strong><p>{j.error||`${j.attempts} attempt(s)`}</p></div><Status value={j.state}/>{j.state==='failed'&&<Button size="sm" variant="outline" onClick={()=>run(()=>act('/jobs/'+j.id+'/retry',{}))}>Retry stored job</Button>}</div>)}</section></>}
-    </>}
-    <p className="footnote">Local application · Provider notification settings and message presence are separate from delivery and readership.</p>
-  </main></SidebarInset><Toaster position="bottom-right"/><Dialog open={!!confirm} onOpenChange={open=>!open&&setConfirm(undefined)}><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Approve this repair revision</DialogTitle><DialogDescription>This authorizes only the changes below. The backend will recheck the evidence and targets before writing.</DialogDescription></DialogHeader>{confirm?.actions.map(a=><div className="approval-change" key={a.id}><strong>{a.description}</strong><div className="before-after"><pre>{JSON.stringify(a.before,null,2)}</pre><ArrowRight/><pre>{JSON.stringify(a.patch,null,2)}</pre></div></div>)}<p className="muted text-sm">{mode==='fixture'?'Fixture only — no external writes.':'Writes to the allowlisted records will begin after approval.'}</p><DialogFooter><Button variant="outline" onClick={()=>setConfirm(undefined)}>Cancel</Button><Button disabled={busy} onClick={()=>run(async()=>{await act('/plans/'+confirm!.id+'/decision',{decision:'approved'});setConfirm(undefined);toast.success('Approval recorded. Execution queued.');})}><ShieldCheck size={16}/>Approve exact changes</Button></DialogFooter></DialogContent></Dialog></SidebarProvider>
+const nav = [
+  { icon: Activity, label: "Reality Health" },
+  { icon: BookOpen, label: "Evidence Blackboard" },
+  { icon: History, label: "History" },
+  { icon: Bell, label: "Inbox" },
+  { icon: Link2, label: "Connections" },
+  { icon: Settings2, label: "Preferences" },
+];
+type Act = (path: string, body?: unknown, method?: string) => Promise<any>;
+export function Status({ value }: { value: string }) {
+  return (
+    <span className={"tag status-" + value.replaceAll(" ", "-")}>
+      <span className="status-dot" />
+      {value.replaceAll("_", " ")}
+    </span>
+  );
+}
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+function Choice({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+  label: string;
+}) {
+  return (
+    <Field label={label}>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map(([v, l]) => (
+            <SelectItem key={v} value={v}>
+              {l}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+}
+function Blank({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <Empty className="py-12">
+      <EmptyHeader>
+        <Radio className="empty-icon" size={34} />
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+      {children}
+    </Empty>
+  );
+}
+function ErrorBox({ text }: { text: string }) {
+  return (
+    <div className="notice danger" role="alert">
+      <TriangleAlert size={18} />
+      <span>{text}</span>
+    </div>
+  );
+}
+export default function Workspace() {
+  const [mode, setMode] = useState<Mode>("live"),
+    [view, setView] = useState("Reality Health"),
+    [state, setState] = useState<State>(),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [selected, setSelected] = useState<string>(),
+    [detail, setDetail] = useState<any>(),
+    [confirm, setConfirm] = useState<RepairPlan>(),
+    [history, setHistory] = useState<any[]>([]);
+  const refresh = useCallback(async () => {
+    try {
+      const s = await api<State>("/state", mode);
+      setState(s);
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, [mode]);
+  useEffect(() => {
+    setState(undefined);
+    setSelected(undefined);
+    setDetail(undefined);
+    void refresh();
+    const t = setInterval(() => void refresh(), 2500);
+    return () => clearInterval(t);
+  }, [refresh]);
+  useEffect(() => {
+    if (selected)
+      void api("/plans/" + selected, mode)
+        .then(setDetail)
+        .catch((e) => setError(e.message));
+  }, [selected, state?.runs.map((r) => r.state).join(), mode]);
+  useEffect(() => {
+    if (view === "History")
+      void api<any[]>("/history", mode)
+        .then(setHistory)
+        .catch((e) => setError(e.message));
+  }, [view, state?.lastScan?.at, state?.runs.map((r) => r.state).join(), mode]);
+  const act: Act = async (path, body, method) => {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api(path, mode, body, method);
+      await refresh();
+      return result;
+    } catch (e) {
+      setError((e as Error).message);
+      toast.error((e as Error).message);
+      throw e;
+    } finally {
+      setBusy(false);
+    }
+  };
+  const run = (fn: () => Promise<any>) => void fn().catch(() => {});
+  useEffect(() => {
+    const context = (document as any).modelContext;
+    if (!context?.registerTool) return;
+    const lifecycle = new AbortController();
+    const tool = (definition: any) =>
+      Promise.resolve(
+        context.registerTool(definition, { signal: lifecycle.signal }),
+      ).catch(() => {});
+    void tool({
+      name: "inspect_reality_conflicts",
+      description:
+        "Read current conflicts, proposed repairs, and verification state. Does not approve or execute.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
+      execute: async (input: any) => {
+        if (Object.keys(input || {}).length)
+          throw new Error("No arguments accepted.");
+        const s = await api<State>("/state", mode);
+        setState(s);
+        return { mode, plans: s.plans, runs: s.runs };
+      },
+    });
+    void tool({
+      name: "start_reality_scan",
+      description:
+        "Queue a source scan and update the visible workspace. Does not approve repairs.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: false, untrustedContentHint: true },
+      execute: async (input: any) => {
+        if (Object.keys(input || {}).length)
+          throw new Error("No arguments accepted.");
+        const result = await api("/scan", mode, {});
+        await refresh();
+        return result;
+      },
+    });
+    void tool({
+      name: "open_repair_review",
+      description: "Open evidence and exact proposed changes for human review.",
+      inputSchema: {
+        type: "object",
+        properties: { planId: { type: "string" } },
+        required: ["planId"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
+      execute: async (input: any) => {
+        if (
+          !input ||
+          typeof input.planId !== "string" ||
+          Object.keys(input).some((k) => k !== "planId")
+        )
+          throw new Error("A planId is required.");
+        const result = await api(
+          "/plans/" + encodeURIComponent(input.planId),
+          mode,
+        );
+        setSelected(input.planId);
+        setDetail(result);
+        setView("Reality Health");
+        return {
+          planId: input.planId,
+          status: result.run?.state || result.plan.status,
+        };
+      },
+    });
+    return () => lifecycle.abort();
+  }, [mode, refresh]);
+  const active =
+    state?.plans.filter(
+      (p) =>
+        p.status === "review" &&
+        !state.runs.some((r) => r.planId === p.id && r.state === "verified"),
+    ) || [];
+  const connected =
+    mode === "live"
+      ? state?.connections?.filter((c) => c.connected).length || 0
+      : 0;
+  return (
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader className="brand">
+          <Radio size={28} />
+          <span>
+            Reality Sync<small>WORKSPACE / LOCAL</small>
+          </span>
+        </SidebarHeader>
+        <SidebarContent className="px-3 py-6">
+          <SidebarMenu>
+            {nav.map((n) => (
+              <SidebarMenuItem key={n.label}>
+                <SidebarMenuButton
+                  isActive={view === n.label}
+                  onClick={() => setView(n.label)}
+                  className="h-11 px-3 text-sm"
+                >
+                  <n.icon />
+                  <span>{n.label}</span>
+                  {n.label === "Inbox" && !!state?.inbox.length && (
+                    <span className="nav-count">{state.inbox.length}</span>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter className="p-5">
+          <div className="approval-note">
+            <ShieldCheck size={18} />
+            <span>
+              Human approval
+              <br />
+              <small>Every repair. Every shared message.</small>
+            </span>
+          </div>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <header className="topbar">
+          <SidebarTrigger />
+          <span>Personal workspace</span>
+          <div className="mode-switch">
+            <Button
+              size="sm"
+              variant={mode === "live" ? "secondary" : "ghost"}
+              onClick={() => setMode("live")}
+            >
+              Live connections
+            </Button>
+            <Button
+              size="sm"
+              variant={mode === "fixture" ? "secondary" : "ghost"}
+              onClick={() => setMode("fixture")}
+            >
+              Fixture workspace
+            </Button>
+          </div>
+        </header>
+        <main className="workspace">
+          {mode === "fixture" && (
+            <div className="notice fixture">
+              <Play size={17} />
+              <span>
+                <strong>Fixture workspace.</strong> Synthetic evidence and
+                provider state. Actions here do not contact external services.
+              </span>
+            </div>
+          )}
+          <div className="page-heading">
+            <div>
+              <p className="eyebrow">RECONCILE / VERIFY / ADAPT</p>
+              <h1>{view}</h1>
+              <p className="subtitle">
+                {view === "Reality Health"
+                  ? "Review what changed. Keep the rest of your day in sync."
+                  : view === "Evidence Blackboard"
+                    ? "Independent assessments, original evidence, and unresolved questions."
+                    : view === "History"
+                      ? "Approvals, attempts, and what the providers actually returned."
+                      : view === "Connections"
+                        ? "Connect dedicated accounts and define who can establish a fact."
+                        : view === "Preferences"
+                          ? "Choose how approved changes should affect your day."
+                          : "Reminder state and items that need your attention."}
+              </p>
+            </div>
+            {view === "Reality Health" && (
+              <Button
+                disabled={busy || !state?.config.entities.length}
+                onClick={() => run(() => act("/scan", {}))}
+              >
+                <RefreshCw size={16} className={busy ? "animate-spin" : ""} />
+                Scan now
+              </Button>
+            )}
+          </div>
+          {error && <ErrorBox text={error} />}
+          {!state ? (
+            <div className="space-y-5">
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-72 w-full" />
+            </div>
+          ) : (
+            <>
+              {(view === "Reality Health" ||
+                view === "Evidence Blackboard") && (
+                <>
+                  <div className="metrics">
+                    {[
+                      [
+                        "Connected apps",
+                        mode === "fixture" ? "Fixture" : `${connected} / 3`,
+                        state.lastScan
+                          ? `Last scan ${date(state.lastScan.at, state.config.preferences.timezone)}`
+                          : "No live checks yet",
+                      ],
+                      [
+                        "Needs review",
+                        String(active.length),
+                        "Exact changes wait for your decision",
+                      ],
+                      [
+                        "Verified repairs",
+                        String(
+                          state.runs.filter((r) => r.state === "verified")
+                            .length,
+                        ),
+                        mode === "fixture"
+                          ? "Fixture readbacks only"
+                          : "Confirmed by provider rereads",
+                      ],
+                    ].map(([l, v, d]) => (
+                      <section className="metric" key={l}>
+                        <p>{l}</p>
+                        <strong>{v}</strong>
+                        <small>{d}</small>
+                      </section>
+                    ))}
+                  </div>
+                  {state.scanErrors
+                    .filter((e) => e.error)
+                    .map((e) => (
+                      <ErrorBox
+                        key={e.entityId}
+                        text={`${e.entityId}: ${e.error}`}
+                      />
+                    ))}
+                  {!state.plans.length ? (
+                    <section className="panel">
+                      <div className="panel-heading">
+                        <h2>Your reconciliation queue</h2>
+                        <Status value="awaiting setup" />
+                      </div>
+                      <Blank
+                        title={
+                          state.config.entities.length
+                            ? "Ready for the first scan"
+                            : "Connect your source applications"
+                        }
+                        description={
+                          state.config.entities.length
+                            ? "Scan the configured records to investigate their evidence and prepare a review."
+                            : "Add Slack, Google Calendar, and Jira credentials locally. You can explore the separate fixture workspace while setting up."
+                        }
+                      >
+                        <Button
+                          onClick={() =>
+                            state.config.entities.length
+                              ? run(() => act("/scan", {}))
+                              : setView("Connections")
+                          }
+                        >
+                          {state.config.entities.length
+                            ? "Run first scan"
+                            : "Open Connections"}
+                          <ArrowRight size={16} />
+                        </Button>
+                      </Blank>
+                    </section>
+                  ) : (
+                    <div className="review-layout">
+                      <section className="panel queue">
+                        <div className="panel-heading">
+                          <h2>Reconciliations</h2>
+                          <span className="muted text-sm">
+                            {state.plans.length} records
+                          </span>
+                        </div>
+                        {state.plans.map((p) => (
+                          <button
+                            className={
+                              "queue-row " +
+                              (selected === p.id ? "selected" : "")
+                            }
+                            key={p.id}
+                            onClick={() => setSelected(p.id)}
+                          >
+                            <div className="queue-icon">
+                              {p.status === "abstained" ? (
+                                <TriangleAlert size={19} />
+                              ) : (
+                                <Link2 size={19} />
+                              )}
+                            </div>
+                            <div>
+                              <strong>
+                                {state.config.entities.find(
+                                  (e) => e.id === p.entityId,
+                                )?.title || p.entityId}
+                              </strong>
+                              <p>
+                                {p.actions.length
+                                  ? `${p.actions.length} proposed corrections`
+                                  : p.unresolved.length
+                                    ? "Needs clarification"
+                                    : "Records agree"}
+                              </p>
+                              <Status
+                                value={
+                                  state.runs.find((r) => r.planId === p.id)
+                                    ?.state || p.status
+                                }
+                              />
+                            </div>
+                            <ChevronRight size={17} />
+                          </button>
+                        ))}
+                      </section>
+                      <section className="detail-column">
+                        {selected && detail ? (
+                          <RepairDetail
+                            data={detail}
+                            state={state}
+                            onApprove={() => setConfirm(detail.plan)}
+                            onDecision={(decision) =>
+                              run(() =>
+                                act("/plans/" + selected + "/decision", {
+                                  decision,
+                                }),
+                              )
+                            }
+                            onResume={() =>
+                              run(() =>
+                                act("/plans/" + selected + "/resume", {}),
+                              )
+                            }
+                            mode={mode}
+                            act={act}
+                            blackboard={view === "Evidence Blackboard"}
+                          />
+                        ) : (
+                          <div className="panel">
+                            <Blank
+                              title="Choose a reconciliation"
+                              description="Read the evidence and exact before-and-after changes before deciding."
+                            />
+                          </div>
+                        )}
+                      </section>
+                    </div>
+                  )}
+                  {view === "Reality Health" && !!state.events.length && (
+                    <section className="panel">
+                      <div className="panel-heading">
+                        <h2>Adapt your day</h2>
+                        <span className="muted text-sm">
+                          {state.config.preferences.timezone}
+                        </span>
+                      </div>
+                      <div className="panel-body">
+                        <ActionBox
+                          mode={mode}
+                          act={act}
+                          events={state.events}
+                          onSelect={(eventId) => {
+                            const p = state.plans.find(
+                              (p) => p.entityId === eventId,
+                            );
+                            if (p) setSelected(p.id);
+                          }}
+                        />
+                        <Adapt state={state} mode={mode} act={act} />
+                      </div>
+                    </section>
+                  )}
+                  <section className="workflow-strip">
+                    {[
+                      "Detect",
+                      "Investigate",
+                      "Reconcile",
+                      "Approve",
+                      "Act",
+                      "Verify",
+                      "Adapt",
+                    ].map((s, i) => (
+                      <div key={s}>
+                        <span>
+                          {i === 3 ? (
+                            <ShieldCheck size={15} />
+                          ) : i === 5 ? (
+                            <Check size={15} />
+                          ) : (
+                            String(i + 1).padStart(2, "0")
+                          )}
+                        </span>
+                        {s}
+                      </div>
+                    ))}
+                  </section>
+                </>
+              )}
+              {view === "Connections" && (
+                <Connections state={state} mode={mode} act={act} />
+              )}
+              {view === "Preferences" && (
+                <Preferences state={state} act={act} />
+              )}
+              {view === "Inbox" && (
+                <section className="panel">
+                  <div className="panel-heading">
+                    <h2>Notifications and reminders</h2>
+                    <span className="tag">{state.inbox.length}</span>
+                  </div>
+                  {state.inbox.length ? (
+                    state.inbox.map((n, i) => (
+                      <div className="inbox-row" key={n.id || i}>
+                        <Bell size={19} />
+                        <div>
+                          <strong>{n.message}</strong>
+                          <p>
+                            {n.triggerAt
+                              ? date(
+                                  n.triggerAt,
+                                  state.config.preferences.timezone,
+                                )
+                              : date(n.at || n.updatedAt)}
+                          </p>
+                          {n.error && <p className="error-text">{n.error}</p>}
+                        </div>
+                        {n.state && <Status value={n.state} />}
+                      </div>
+                    ))
+                  ) : (
+                    <Blank
+                      title="You're all caught up"
+                      description="Reminder settings, missed items, and maintenance issues will appear here."
+                    />
+                  )}
+                </section>
+              )}
+              {view === "History" && (
+                <>
+                  <section className="panel">
+                    <div className="panel-heading">
+                      <h2>Activity journal</h2>
+                      <span className="tag">{mode}</span>
+                    </div>
+                    {history.length ? (
+                      history.map((h) => (
+                        <details className="journal-entry" key={h.id}>
+                          <summary>
+                            <span className="journal-dot" />
+                            <strong>{h.kind.replaceAll("_", " ")}</strong>
+                            <time>
+                              {date(h.at, state.config.preferences.timezone)}
+                            </time>
+                          </summary>
+                          <pre>{JSON.stringify(h.body, null, 2)}</pre>
+                        </details>
+                      ))
+                    ) : (
+                      <Blank
+                        title="No activity yet"
+                        description="Scans, approvals, provider attempts, and verification receipts appear here."
+                      />
+                    )}
+                  </section>
+                  <section className="panel">
+                    <div className="panel-heading">
+                      <h2>Durable jobs</h2>
+                    </div>
+                    {state.jobs.map((j) => (
+                      <div className="inbox-row" key={j.id}>
+                        <div>
+                          <strong>{j.kind}</strong>
+                          <p>{j.error || `${j.attempts} attempt(s)`}</p>
+                        </div>
+                        <Status value={j.state} />
+                        {j.state === "failed" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              run(() => act("/jobs/" + j.id + "/retry", {}))
+                            }
+                          >
+                            Retry stored job
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </section>
+                </>
+              )}
+            </>
+          )}
+          <p className="footnote">
+            Local application · Provider notification settings and message
+            presence are separate from delivery and readership.
+          </p>
+        </main>
+      </SidebarInset>
+      <Toaster position="bottom-right" />
+      <Dialog
+        open={!!confirm}
+        onOpenChange={(open) => !open && setConfirm(undefined)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Approve this repair revision</DialogTitle>
+            <DialogDescription>
+              This authorizes only the changes below. The backend will recheck
+              the evidence and targets before writing.
+            </DialogDescription>
+          </DialogHeader>
+          {confirm?.actions.map((a) => (
+            <div className="approval-change" key={a.id}>
+              <strong>{a.description}</strong>
+              <div className="before-after">
+                <pre>{JSON.stringify(a.before, null, 2)}</pre>
+                <ArrowRight />
+                <pre>{JSON.stringify(a.patch, null, 2)}</pre>
+              </div>
+            </div>
+          ))}
+          <p className="muted text-sm">
+            {mode === "fixture"
+              ? "Fixture only — no external writes."
+              : "Writes to the allowlisted records will begin after approval."}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirm(undefined)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await act("/plans/" + confirm!.id + "/decision", {
+                    decision: "approved",
+                  });
+                  setConfirm(undefined);
+                  toast.success("Approval recorded. Execution queued.");
+                })
+              }
+            >
+              <ShieldCheck size={16} />
+              Approve exact changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </SidebarProvider>
+  );
 }
 
-function RepairDetail({data,state,onApprove,onDecision,onResume,mode,act,blackboard}:{data:any;state:State;onApprove:()=>void;onDecision:(d:string)=>void;onResume:()=>void;mode:Mode;act:Act;blackboard:boolean}){const p:RepairPlan=data.plan;const status=data.run?.state||p.status;return <section className="panel"><div className="panel-heading"><div><p className="eyebrow">{p.entityId.toUpperCase()} / REVIEW</p><h2>{state.config.entities.find(e=>e.id===p.entityId)?.title}</h2></div><Status value={status}/></div><div className="panel-body"><p className="explanation">{p.explanation}</p><Tabs key={blackboard?'blackboard':'review'} defaultValue={blackboard?'blackboard':'changes'}><TabsList><TabsTrigger value="changes">Changes</TabsTrigger><TabsTrigger value="evidence">Evidence</TabsTrigger><TabsTrigger value="blackboard">Blackboard</TabsTrigger><TabsTrigger value="receipt">Receipt</TabsTrigger></TabsList><TabsContent value="changes"><div className="changes">{p.actions.map(a=><div className="change" key={a.id}><h3>{a.description}</h3>{Object.entries(a.patch).map(([field,value])=><div className="change-field" key={field}><span className="field-name">{field}</span><div className="old-value">{pretty(a.before[field])}</div><ArrowRight size={16}/><div className="new-value">{pretty(value)}</div></div>)}</div>)}{!p.actions.length&&<div className="notice">{p.unresolved.length?`Unresolved: ${p.unresolved.join(', ')}. Ask the decision owner for clarification.`:'The current records match the supported decision.'}</div>}</div></TabsContent><TabsContent value="evidence"><div className="evidence-list">{data.snapshot?.evidence.map((e:any)=><article className="evidence" key={e.id}><div><Status value={p.claims.some(c=>c.evidenceId===e.id&&c.statement==='approved')?'approved':'proposal'}/><span>{e.authorId} · {date(e.at,state.config.preferences.timezone)}</span></div><blockquote>{e.text}</blockquote>{e.url&&<a href={e.url} target="_blank" rel="noreferrer">Open original Slack message <ArrowUpRight size={14}/></a>}</article>)}</div></TabsContent><TabsContent value="blackboard"><p className="muted text-sm my-4">These assessments committed independently before seeing peer conclusions. Confidence is model-reported.</p>{p.assessments.map(a=><article className="assessment" key={a.role}><h3>{a.role}<span>{Math.round(a.confidence*100)}% confidence</span></h3><p>{a.explanation}</p>{a.concerns.map((c,i)=><p className="concern" key={i}>{c}</p>)}</article>)}{p.followup.length>0&&<details><summary>One targeted follow-up round</summary><pre>{JSON.stringify(p.followup,null,2)}</pre></details>}</TabsContent><TabsContent value="receipt"><div className="receipt"><ShieldCheck size={26}/><h3>{status==='verified'?'Provider state verified':'Verification is not complete'}</h3><p>{data.run?.error||'API success alone is not a verification receipt.'}</p>{data.approval&&<p>Decision: {data.approval.decision} by {data.approval.actor}, {date(data.approval.at)}</p>}{data.effects?.filter(Boolean).map((e:any)=><details key={e.id}><summary>{e.request.action?.description||e.kind} · {e.state} · {e.attempts} write attempt(s)</summary><pre>{JSON.stringify(e.observations,null,2)}</pre></details>)}</div></TabsContent></Tabs>
-    {p.status==='review'&&!data.approval&&<div className="review-actions"><Button onClick={onApprove}><ShieldCheck size={16}/>Review approval</Button><Button variant="outline" onClick={()=>onDecision('rejected')}>Reject</Button><Button variant="ghost" onClick={()=>onDecision('unresolved')}>Mark unresolved</Button></div>}{['partial','failed','uncertain'].includes(status)&&data.approval?.decision==='approved'&&<Button className="mt-5" variant="outline" onClick={onResume}>Reread and resume approved repair</Button>}
-    </div></section>}
-
-function ActionBox({mode,act,events,onSelect}:{mode:Mode;act:Act;events:EventRevision[];onSelect:(id:string)=>void}){const[text,setText]=useState(''),[preview,setPreview]=useState<any>(),[working,setWorking]=useState(false);return <div className="action-box"><form onSubmit={e=>{e.preventDefault();setWorking(true);void act('/intent',{text}).then(setPreview).catch(()=>{}).finally(()=>setWorking(false));}}><Sparkles size={19}/><Input aria-label="Describe a reminder or trip" placeholder="45 minutes before my next client meeting…" value={text} onChange={e=>setText(e.target.value)} required/><Button disabled={working} type="submit">{working?<Loader2 className="animate-spin" size={16}/>:'Preview'}</Button></form>{preview&&<div className="intent-result"><strong>{preview.intent.kind} preview</strong><p>{preview.warning||'Choose the occurrence below, then review its settings in Adapt.'}</p>{preview.absoluteTime&&<p>Requested time: {date(preview.absoluteTime,preview.timezone)}</p>}{preview.events.map((e:any)=><Button key={e.id} variant="outline" size="sm" onClick={()=>{onSelect(e.id);window.dispatchEvent(new CustomEvent('reality-intent',{detail:{eventId:e.id,preview}}));}}>{e.summary||e.id}<ChevronRight size={14}/></Button>)}{preview.intent.selection==='today'&&preview.events.length>1&&<p className="muted">Each event keeps its own reminder. Review and approve each occurrence.</p>}</div>}</div>}
-
-function Adapt({state,mode,act}:{state:State;mode:Mode;act:Act}){const[eventId,setEventId]=useState(state.events[0]?.id||''),[tab,setTab]=useState('reminders'),[intent,setIntent]=useState<any>();const event=state.events.find(e=>e.id===eventId)||state.events[0];useEffect(()=>{const listener=(e:Event)=>{const d=(e as CustomEvent).detail;setEventId(d.eventId);setIntent(d.preview);setTab(d.preview.intent.kind==='trip'?'travel':d.preview.intent.kind==='message'?'messages':'reminders');};window.addEventListener('reality-intent',listener);return()=>window.removeEventListener('reality-intent',listener);},[]);if(!event)return null;return <><Choice label="Event occurrence" value={event.id} onChange={setEventId} options={state.events.map(e=>[e.id,`${e.event.summary||e.id} · ${date(e.event.start.dateTime||e.event.start.date,state.config.preferences.timezone)}`])}/><div className="event-facts"><span><Clock size={16}/>{date(event.event.start.dateTime||event.event.start.date,state.config.preferences.timezone)}</span><span><MapPin size={16}/>{event.event.location||'No physical location'}</span>{event.unresolved.length>0&&<Status value="needs clarification"/>}</div><Tabs value={tab} onValueChange={setTab}><TabsList><TabsTrigger value="reminders"><Bell size={15}/>Reminders & prep</TabsTrigger><TabsTrigger value="travel"><MapPin size={15}/>Travel</TabsTrigger><TabsTrigger value="messages"><MessageSquare size={15}/>Messages</TabsTrigger></TabsList><TabsContent value="reminders"><ReminderPanel key={event.id} event={event} state={state} act={act} intent={intent}/></TabsContent><TabsContent value="travel"><TravelPanel key={event.id} event={event} state={state} act={act} intent={intent}/></TabsContent><TabsContent value="messages"><MessagePanel key={event.id} event={event} state={state} act={act}/></TabsContent></Tabs></>}
-
-function ReminderPanel({event,state,act,intent}:{event:EventRevision;state:State;act:Act;intent:any}){const[minutes,setMinutes]=useState('30'),[channel,setChannel]=useState('calendar'),[rule,setRule]=useState('relative'),[purpose,setPurpose]=useState('meeting'),[at,setAt]=useState(''),[preview,setPreview]=useState<any>(),[prepStart,setPrepStart]=useState(''),[block,setBlock]=useState<any>();useEffect(()=>{if(!intent)return;if(intent.intent.minutes!==null)setMinutes(String(intent.intent.minutes));if(intent.absoluteTime){setAt(intent.absoluteTime);setRule('absolute');setChannel(intent.intent.channel||'app');setPurpose('preparation');}else{setRule('relative');setChannel(intent.intent.channel||'calendar');}},[intent]);
-  const reminders=state.reminders.filter(r=>r.eventId===event.id);const effective=event.event.reminders?.useDefault!==false?event.defaults:event.event.reminders.overrides||[];const body=()=>({eventId:event.id,purpose,rule,minutes:Number(minutes),channel,...(rule==='absolute'?{at}:{})});const run=(fn:()=>Promise<any>)=>void fn().catch(()=>{});
-  return <div className="adapt-grid"><div><h3>Reminder settings</h3><div className="native-reminders">{effective.length?effective.map((r,i)=><p key={i}><CheckCircle2 size={16}/>{r.minutes} minutes before · {r.method} · {date(new Date(Date.parse(event.event.start.dateTime||(event.event.start.date+'T12:00:00Z'))-r.minutes*60000).toISOString(),state.config.preferences.timezone)}</p>):<p>No native Calendar reminders are configured.</p>}<small>Existing native offsets follow Calendar changes automatically. Device delivery is not verified.</small></div><form className="form-grid" onSubmit={e=>{e.preventDefault();run(async()=>setPreview(await act('/reminders/preview',body())));}}>
-    <Choice label="Purpose" value={purpose} onChange={setPurpose} options={[["meeting","Meeting"],["preparation","Preparation"]]}/><Choice label="Timing rule" value={rule} onChange={v=>{setRule(v);setPreview(undefined);if(v==='absolute')setChannel('app');}} options={[["relative","Before event"],["absolute","Fixed date & time"]]}/>
-    {rule==='relative'?<Field label="Minutes before"><Input type="number" min="0" max="40320" value={minutes} onChange={e=>{setMinutes(e.target.value);setPreview(undefined);}}/></Field>:<Field label="Date/time with offset"><Input placeholder="2026-10-08T13:00:00-05:00" value={at} onChange={e=>{setAt(e.target.value);setPreview(undefined);}} required/></Field>}
-    <Choice label="Delivery channel" value={channel} onChange={v=>{setChannel(v);setPreview(undefined);}} options={rule==='relative'?[["calendar","Calendar reminder"],["slack","Personal Slack message"],["app","In-app inbox"]]:[["slack","Personal Slack message"],["app","In-app inbox"]]}/><Button type="submit" variant="outline" disabled={!!event.unresolved.length}>Preview reminder</Button></form>
-    {preview&&<div className="preview-card"><h4>{date(preview.triggerAt,state.config.preferences.timezone)}</h4><p>{preview.channel} · {preview.rule} · {preview.purpose}</p>{preview.warning&&<p>{preview.warning}</p>}{preview.existing&&<p>Maintains the existing logical reminder.</p>}<Button onClick={()=>run(async()=>{await act('/reminders',body());setPreview(undefined);toast.success('Reminder approved');})}>Approve reminder</Button></div>}
-    {reminders.map(r=><div className="reminder-row" key={r.id}><div><strong>{r.purpose} · {r.channel}</strong><p>{date(r.triggerAt,state.config.preferences.timezone)}</p>{r.lastError&&<p className="error-text">{r.lastError}</p>}</div><Status value={r.state}/>{!['canceled','delivered','missed'].includes(r.state)&&<Button variant="ghost" size="sm" onClick={()=>run(()=>act('/reminders/'+r.id+'/cancel',{}))}>Cancel</Button>}</div>)}</div>
-    <div className="prep-panel"><h3>Preparation</h3>{event.issue?<><span className="tag">{event.issue.key}</span><h4>{event.issue.fields?.summary}</h4><p>{event.issue.fields?.status?.name||'Status unknown'} · due {event.issue.fields?.duedate||'not set'}</p><p className="muted">Meeting changes leave this task’s status and deadline intact.</p>{state.config.jiraBaseUrl&&<a className="text-link" target="_blank" rel="noreferrer" href={`${state.config.jiraBaseUrl}/browse/${event.issue.key}`}>Open Jira <ArrowUpRight size={14}/></a>}<Field label="Preparation start (with timezone)"><Input value={prepStart} onChange={e=>{setPrepStart(e.target.value);setBlock(undefined);}} placeholder="2026-10-08T13:00:00-05:00"/></Field><Button variant="outline" onClick={()=>run(async()=>setBlock(await act('/preparation/preview',{eventId:event.id,start:prepStart})))}>Check {state.config.preferences.prepMinutes}-minute slot</Button>{block&&<div className="preview-card"><p>{date(block.start)} – {date(block.end)}</p><Status value={block.available?'available':'busy'}/>{block.available&&<Button onClick={()=>run(async()=>{await act('/preparation',block);setBlock(undefined);})}>Approve personal block</Button>}</div>}</>:<p className="muted">No Jira preparation task is explicitly linked to this occurrence. Add an issue mapping in Connections.</p>}</div></div>
+function RepairDetail({
+  data,
+  state,
+  onApprove,
+  onDecision,
+  onResume,
+  mode,
+  act,
+  blackboard,
+}: {
+  data: any;
+  state: State;
+  onApprove: () => void;
+  onDecision: (d: string) => void;
+  onResume: () => void;
+  mode: Mode;
+  act: Act;
+  blackboard: boolean;
+}) {
+  const p: RepairPlan = data.plan;
+  const status = data.run?.state || p.status;
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">{p.entityId.toUpperCase()} / REVIEW</p>
+          <h2>
+            {state.config.entities.find((e) => e.id === p.entityId)?.title}
+          </h2>
+        </div>
+        <Status value={status} />
+      </div>
+      <div className="panel-body">
+        <p className="explanation">{p.explanation}</p>
+        <Tabs
+          key={blackboard ? "blackboard" : "review"}
+          defaultValue={blackboard ? "blackboard" : "changes"}
+        >
+          <TabsList>
+            <TabsTrigger value="changes">Changes</TabsTrigger>
+            <TabsTrigger value="evidence">Evidence</TabsTrigger>
+            <TabsTrigger value="blackboard">Blackboard</TabsTrigger>
+            <TabsTrigger value="receipt">Receipt</TabsTrigger>
+          </TabsList>
+          <TabsContent value="changes">
+            <div className="changes">
+              {p.actions.map((a) => (
+                <div className="change" key={a.id}>
+                  <h3>{a.description}</h3>
+                  {Object.entries(a.patch).map(([field, value]) => (
+                    <div className="change-field" key={field}>
+                      <span className="field-name">{field}</span>
+                      <div className="old-value">{pretty(a.before[field])}</div>
+                      <ArrowRight size={16} />
+                      <div className="new-value">{pretty(value)}</div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {!p.actions.length && (
+                <div className="notice">
+                  {p.unresolved.length
+                    ? `Unresolved: ${p.unresolved.join(", ")}. Ask the decision owner for clarification.`
+                    : "The current records match the supported decision."}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+          <TabsContent value="evidence">
+            <div className="evidence-list">
+              {data.snapshot?.evidence.map((e: any) => (
+                <article className="evidence" key={e.id}>
+                  <div>
+                    <Status
+                      value={
+                        p.claims.some(
+                          (c) =>
+                            c.evidenceId === e.id && c.statement === "approved",
+                        )
+                          ? "approved"
+                          : "proposal"
+                      }
+                    />
+                    <span>
+                      {e.authorId} ·{" "}
+                      {date(e.at, state.config.preferences.timezone)}
+                    </span>
+                  </div>
+                  <blockquote>{e.text}</blockquote>
+                  {e.url && (
+                    <a href={e.url} target="_blank" rel="noreferrer">
+                      Open original Slack message <ArrowUpRight size={14} />
+                    </a>
+                  )}
+                </article>
+              ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="blackboard">
+            <p className="muted text-sm my-4">
+              These assessments committed independently before seeing peer
+              conclusions. Confidence is model-reported.
+            </p>
+            {p.assessments.map((a) => (
+              <article className="assessment" key={a.role}>
+                <h3>
+                  {a.role}
+                  <span>{Math.round(a.confidence * 100)}% confidence</span>
+                </h3>
+                <p>{a.explanation}</p>
+                {a.concerns.map((c, i) => (
+                  <p className="concern" key={i}>
+                    {c}
+                  </p>
+                ))}
+              </article>
+            ))}
+            {p.followup.length > 0 && (
+              <details>
+                <summary>One targeted follow-up round</summary>
+                <pre>{JSON.stringify(p.followup, null, 2)}</pre>
+              </details>
+            )}
+          </TabsContent>
+          <TabsContent value="receipt">
+            <div className="receipt">
+              <ShieldCheck size={26} />
+              <h3>
+                {status === "verified"
+                  ? "Provider state verified"
+                  : "Verification is not complete"}
+              </h3>
+              <p>
+                {data.run?.error ||
+                  "API success alone is not a verification receipt."}
+              </p>
+              {data.approval && (
+                <p>
+                  Decision: {data.approval.decision} by {data.approval.actor},{" "}
+                  {date(data.approval.at)}
+                </p>
+              )}
+              {data.effects?.filter(Boolean).map((e: any) => (
+                <details key={e.id}>
+                  <summary>
+                    {e.request.action?.description || e.kind} · {e.state} ·{" "}
+                    {e.attempts} write attempt(s)
+                  </summary>
+                  <pre>{JSON.stringify(e.observations, null, 2)}</pre>
+                </details>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+        {p.status === "review" && !data.approval && (
+          <div className="review-actions">
+            <Button onClick={onApprove}>
+              <ShieldCheck size={16} />
+              Review approval
+            </Button>
+            <Button variant="outline" onClick={() => onDecision("rejected")}>
+              Reject
+            </Button>
+            <Button variant="ghost" onClick={() => onDecision("unresolved")}>
+              Mark unresolved
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() =>
+                void act("/slack/review", { planId: p.id })
+                  .then(() =>
+                    toast.success(
+                      "Review message prepared in Adapt → Messages",
+                    ),
+                  )
+                  .catch(() => {})
+              }
+            >
+              Prepare Slack review
+            </Button>
+          </div>
+        )}
+        {["partial", "failed", "uncertain"].includes(status) &&
+          data.approval?.decision === "approved" && (
+            <Button className="mt-5" variant="outline" onClick={onResume}>
+              Reread and resume approved repair
+            </Button>
+          )}
+      </div>
+    </section>
+  );
 }
 
-function TravelPanel({event,state,act,intent}:{event:EventRevision;state:State;act:Act;intent:any}){const[origin,setOrigin]=useState(state.config.savedOrigin?.address||''),[coords,setCoords]=useState<{lat:number;lng:number}>(),[destination,setDestination]=useState(''),[stop,setStop]=useState('none'),[dwell,setDwell]=useState('10'),[buffer,setBuffer]=useState(String(state.config.preferences.arrivalBuffer)),[maxAdded,setMaxAdded]=useState('30'),[connector,setConnector]=useState(''),[result,setResult]=useState<any>(),[accepted,setAccepted]=useState<string>(),[geoError,setGeoError]=useState('');useEffect(()=>{if(intent?.intent.stop){setStop(intent.intent.stop);setDwell(intent.intent.stop==='ev'?'30':intent.intent.stop==='pharmacy'?'15':'10');}if(intent?.intent.maxAddedMinutes)setMaxAdded(String(intent.intent.maxAddedMinutes));},[intent]);const run=(fn:()=>Promise<any>)=>void fn().catch(()=>{});return <><div className="notice"><MapPin size={18}/><span>Driving estimates with one optional stop. A confirmed personal destination affects this trip only.</span></div><form className="form-grid travel-form" onSubmit={e=>{e.preventDefault();setAccepted(undefined);run(async()=>setResult(await act('/trips',{eventId:event.id,origin:coords?{label:'My current location',...coords,confirmed:true}:{label:origin,address:origin,confirmed:true},...(destination?{destination:{label:destination,address:destination,confirmed:true}}:{}),...(stop!=='none'?{stop,dwellMinutes:Number(dwell)}:{}),bufferMinutes:Number(buffer),maxAddedMinutes:Number(maxAdded),...(connector?{connector}:{})})));}}><Field label="Starting address"><Input value={coords?'Current location confirmed':origin} onChange={e=>{setCoords(undefined);setOrigin(e.target.value);}} placeholder="Enter your current address" required/></Field><div className="field"><span>Or use device location</span><Button type="button" variant="outline" onClick={()=>{if(!navigator.geolocation){setGeoError('Location is unavailable; enter an address.');return;}navigator.geolocation.getCurrentPosition(p=>{setCoords({lat:p.coords.latitude,lng:p.coords.longitude});setGeoError('');},()=>setGeoError('Location access was unavailable or denied. Enter an address.'),{timeout:10000,maximumAge:0});}}>Use my location</Button></div><Field label="Personal destination override (optional)"><Input value={destination} onChange={e=>setDestination(e.target.value)} placeholder={state.config.places[event.event.location||'']?.address||'Use confirmed meeting location'}/></Field><Choice label="Optional stop" value={stop} onChange={v=>{setStop(v);setDwell(v==='ev'?'30':v==='pharmacy'?'15':'10');}} options={[["none","Direct route"],["gas","Gas"],["coffee","Coffee"],["pharmacy","Pharmacy"],["ev","EV charging"]]}/>{stop!=='none'&&<><Field label="Minutes at stop"><Input type="number" min="0" max="240" value={dwell} onChange={e=>setDwell(e.target.value)}/></Field><Field label="Maximum added minutes"><Input type="number" min="0" max="240" value={maxAdded} onChange={e=>setMaxAdded(e.target.value)}/></Field></>}{stop==='ev'&&<Choice label="EV connector" value={connector} onChange={setConnector} options={[["EV_CONNECTOR_TYPE_TESLA","Tesla / NACS"],["EV_CONNECTOR_TYPE_CCS_COMBO_1","CCS Combo 1"],["EV_CONNECTOR_TYPE_CCS_COMBO_2","CCS Combo 2"],["EV_CONNECTOR_TYPE_CHADEMO","CHAdeMO"],["EV_CONNECTOR_TYPE_J1772","J1772"]]}/>}<Field label="Arrival buffer (minutes)"><Input type="number" min="0" value={buffer} onChange={e=>setBuffer(e.target.value)}/></Field><Button type="submit">Calculate trip <ArrowRight size={15}/></Button></form>{geoError&&<ErrorBox text={geoError}/>}{result&&<div className="trip-results"><p className="muted">{result.message}</p>{result.quotes.map((q:TripQuote)=><article className="trip-card" key={q.id}><div className="trip-heading"><div><p className="eyebrow">{q.mode==='fixture'?'SYNTHETIC FIXTURE':'GOOGLE MAPS ESTIMATE'}</p><h3>{q.stop?.label||'Direct to meeting'}</h3></div><Status value={q.fits?'within limits':'outside limits'}/></div><p className="muted">{q.origin.label} → {q.destination.label}</p><div className="trip-timing"><div><small>Leave around</small><strong>{date(q.departureAt,state.config.preferences.timezone)}</strong></div><div><small>Driving + stop</small><strong>{Math.round(q.driveSeconds/60)} + {q.dwellMinutes} min</strong></div><div><small>Arrival estimate</small><strong>{date(q.arrivalAt,state.config.preferences.timezone)}</strong></div></div><p>{Math.ceil(q.addedSeconds/60)} added minutes · {q.bufferMinutes}-minute arrival buffer</p><p className="muted text-sm">Calculated {date(q.calculatedAt)} · {q.trafficAvailable?'Traffic-aware':'Traffic unavailable'}</p>{q.warnings.map(w=><p className="route-warning" key={w}>{w}</p>)}{!!q.availability&&<details><summary>Reported EV availability (may change)</summary><pre>{JSON.stringify(q.availability,null,2)}</pre></details>}<div className="button-row"><Button disabled={!q.fits} variant="outline" onClick={()=>run(async()=>{await act('/trips/'+q.id+'/accept',{});setAccepted(q.id);})}>{accepted===q.id?'Trip accepted':'Accept this trip'}</Button>{accepted===q.id&&<Button onClick={()=>run(async()=>{await act('/reminders',{eventId:event.id,purpose:'departure',rule:'departure',channel:'slack',tripId:q.id,minutes:0});toast.success('Departure reminder approved');})}>Approve departure reminder</Button>}{q.mode==='live'&&<Button variant="ghost" onClick={()=>run(async()=>{const data=await act('/trips/'+q.id+'/handoff');window.open(data.url,'_blank','noopener,noreferrer');})}>Open Google Maps <ArrowUpRight size={15}/></Button>}</div></article>)}{result.attribution==='Google Maps'&&<p className="maps-attribution">Google Maps · <a href={state.config.policyUrl} target="_blank" rel="noreferrer">Terms & privacy</a></p>}</div>}</>}
+function ActionBox({
+  mode,
+  act,
+  events,
+  onSelect,
+}: {
+  mode: Mode;
+  act: Act;
+  events: EventRevision[];
+  onSelect: (id: string) => void;
+}) {
+  const [text, setText] = useState(""),
+    [preview, setPreview] = useState<any>(),
+    [working, setWorking] = useState(false);
+  return (
+    <div className="action-box">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setWorking(true);
+          void act("/intent", { text })
+            .then(setPreview)
+            .catch(() => {})
+            .finally(() => setWorking(false));
+        }}
+      >
+        <Sparkles size={19} />
+        <Input
+          aria-label="Describe a reminder or trip"
+          placeholder="45 minutes before my next client meeting…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          required
+        />
+        <Button disabled={working} type="submit">
+          {working ? <Loader2 className="animate-spin" size={16} /> : "Preview"}
+        </Button>
+      </form>
+      {preview && (
+        <div className="intent-result">
+          <strong>{preview.intent.kind} preview</strong>
+          <p>
+            {preview.warning ||
+              "Choose the occurrence below, then review its settings in Adapt."}
+          </p>
+          {preview.absoluteTime && (
+            <p>
+              Requested time: {date(preview.absoluteTime, preview.timezone)}
+            </p>
+          )}
+          {preview.events.map((e: any) => (
+            <Button
+              key={e.id}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                onSelect(e.id);
+                window.dispatchEvent(
+                  new CustomEvent("reality-intent", {
+                    detail: { eventId: e.id, preview },
+                  }),
+                );
+              }}
+            >
+              {e.summary || e.id}
+              <ChevronRight size={14} />
+            </Button>
+          ))}
+          {preview.intent.selection === "today" &&
+            preview.events.length > 1 && (
+              <p className="muted">
+                Each event keeps its own reminder. Review and approve each
+                occurrence.
+              </p>
+            )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-function MessagePanel({event,state,act}:{event:EventRevision;state:State;act:Act}){const[category,setCategory]=useState('update'),[kind,setKind]=useState('slack'),[target,setTarget]=useState(state.config.entities.find(e=>e.id===event.id)?.slackChannelId||''),[mapping,setMapping]=useState<any>(),[visibility,setVisibility]=useState('');const run=(fn:()=>Promise<any>)=>void fn().catch(()=>{});return <><div className="form-grid"><Choice label="Draft category" value={category} onChange={setCategory} options={[["update","Verified correction update"],["clarification","Ask for clarification"],["consequence","Preparation / consequence"]]}/><Choice label="Destination" value={kind} onChange={setKind} options={[["slack","Slack channel or user"],["jira","Jira comment"],["manual","External manual draft"]]}/><Field label={kind==='jira'?'Jira issue key':'Exact channel / user / recipient'}><Input value={target} onChange={e=>setTarget(e.target.value)}/></Field>{kind==='jira'&&<Field label="Restrict comment to role (when applicable)"><Input value={visibility} onChange={e=>setVisibility(e.target.value)} placeholder="For example: Administrators"/></Field>}<Button variant="outline" onClick={()=>run(()=>act('/drafts',{entityId:event.id,category,audience:{kind,target,...(visibility&&kind==='jira'?{visibility:{type:'role',value:visibility}}:{})}}))}>Prepare draft <MessageSquare size={16}/></Button><Button variant="ghost" onClick={()=>run(async()=>setMapping(await act('/events/'+encodeURIComponent(event.id)+'/attendees')))}>Check attendee mappings</Button></div>{mapping&&<div className="preview-card"><strong>{mapping.allMapped?'All attendee identities verified':'Attendee mapping incomplete'}</strong>{mapping.attendees.map((a:any)=><p key={a.email}>{a.email} → {a.slackId||'Manual communication required'}{a.slackId&&<Button size="sm" variant="ghost" onClick={()=>{setKind('slack');setTarget(a.slackId);}}>Choose recipient</Button>}</p>)}{!mapping.attendees.length&&<p>No attendees are listed on this event.</p>}<p className="muted">Each exact audience is reviewed before sending. Unmapped people have not been notified.</p></div>}<div className="drafts">{state.drafts.filter(d=>d.entityId===event.id).map(d=><DraftEditor key={d.id+':'+d.revision} draft={d} act={act}/>)}</div></>}
-function DraftEditor({draft,act}:{draft:MessageDraft;act:Act}){const[text,setText]=useState(draft.text),[sendOpen,setSendOpen]=useState(false);const dirty=text!==draft.text;const run=(fn:()=>Promise<any>)=>void fn().catch(()=>{});return <article className="draft-card"><div className="panel-heading"><div><p className="eyebrow">{draft.category.toUpperCase()}</p><h3>{draft.audience.kind}: {draft.audience.target}</h3></div><Status value={draft.state}/></div><div className="panel-body"><Textarea aria-label="Exact message text" value={text} onChange={e=>setText(e.target.value)} disabled={draft.state!=='review'} rows={7}/><details className="mt-3"><summary>Supporting facts and disclosure</summary>{draft.facts.map((f,i)=><p key={i}>{f}</p>)}<p className="muted">Recipient access and current facts are rechecked at send time.</p></details><div className="button-row">{draft.state==='review'&&<><Button variant="outline" disabled={!dirty} onClick={()=>run(()=>act('/drafts/'+draft.id,{revision:draft.revision,text},'PUT'))}>Save edit</Button>{draft.audience.kind!=='manual'?<Button disabled={dirty} onClick={()=>setSendOpen(true)}>Review send</Button>:<Button onClick={()=>run(async()=>{await navigator.clipboard.writeText(text);toast.success('Manual draft copied');})}>Copy manual draft</Button>}<Button variant="ghost" onClick={()=>run(()=>act('/drafts/'+draft.id+'/dismiss',{revision:draft.revision}))}>Dismiss</Button></>}{draft.state==='uncertain'&&<Button variant="outline" onClick={()=>run(()=>act('/drafts/'+draft.id+'/recover',{}))}>Check message presence</Button>}{draft.state==='verified'&&<p className="verified-note"><CheckCircle2 size={16}/>Presence verified. Readership unknown.</p>}{draft.state==='stale'&&<p className="muted">Facts changed. Prepare a fresh draft.</p>}</div></div><Dialog open={sendOpen} onOpenChange={setSendOpen}><DialogContent><DialogHeader><DialogTitle>Send this exact message</DialogTitle><DialogDescription>{draft.audience.kind}: {draft.audience.target}. Confirm this audience can receive the content.</DialogDescription></DialogHeader><div className="send-preview">{draft.text}</div><DialogFooter><Button variant="outline" onClick={()=>setSendOpen(false)}>Cancel</Button><Button onClick={()=>run(async()=>{await act('/drafts/'+draft.id+'/send',{revision:draft.revision});setSendOpen(false);})}>Approve & send</Button></DialogFooter></DialogContent></Dialog></article>}
+function Adapt({ state, mode, act }: { state: State; mode: Mode; act: Act }) {
+  const [eventId, setEventId] = useState(state.events[0]?.id || ""),
+    [tab, setTab] = useState("reminders"),
+    [intent, setIntent] = useState<any>();
+  const event = state.events.find((e) => e.id === eventId) || state.events[0];
+  useEffect(() => {
+    const listener = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      setEventId(d.eventId);
+      setIntent(d.preview);
+      setTab(
+        d.preview.intent.kind === "trip"
+          ? "travel"
+          : d.preview.intent.kind === "message"
+            ? "messages"
+            : "reminders",
+      );
+    };
+    window.addEventListener("reality-intent", listener);
+    return () => window.removeEventListener("reality-intent", listener);
+  }, []);
+  if (!event) return null;
+  return (
+    <>
+      <Choice
+        label="Event occurrence"
+        value={event.id}
+        onChange={setEventId}
+        options={state.events.map((e) => [
+          e.id,
+          `${e.event.summary || e.id} · ${date(e.event.start.dateTime || e.event.start.date, state.config.preferences.timezone)}`,
+        ])}
+      />
+      <div className="event-facts">
+        <span>
+          <Clock size={16} />
+          {date(
+            event.event.start.dateTime || event.event.start.date,
+            state.config.preferences.timezone,
+          )}
+        </span>
+        <span>
+          <MapPin size={16} />
+          {event.event.location || "No physical location"}
+        </span>
+        {event.unresolved.length > 0 && <Status value="needs clarification" />}
+      </div>
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="reminders">
+            <Bell size={15} />
+            Reminders & prep
+          </TabsTrigger>
+          <TabsTrigger value="travel">
+            <MapPin size={15} />
+            Travel
+          </TabsTrigger>
+          <TabsTrigger value="messages">
+            <MessageSquare size={15} />
+            Messages
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="reminders">
+          <ReminderPanel
+            key={event.id}
+            event={event}
+            state={state}
+            act={act}
+            intent={intent}
+          />
+        </TabsContent>
+        <TabsContent value="travel">
+          <TravelPanel
+            key={event.id}
+            event={event}
+            state={state}
+            act={act}
+            intent={intent}
+          />
+        </TabsContent>
+        <TabsContent value="messages">
+          <MessagePanel key={event.id} event={event} state={state} act={act} />
+        </TabsContent>
+      </Tabs>
+    </>
+  );
+}
 
-function Connections({state,mode,act}:{state:State;mode:Mode;act:Act}){const[configText,setConfigText]=useState(JSON.stringify(state.config,null,2));return <><div className="connection-grid">{[{name:'Slack',key:'slack',details:'Evidence, reviewed messages, and personal reminders',url:'https://api.slack.com/apps'},{name:'Google Calendar',key:'calendar',details:'Events, user reminders, and personal prep blocks',url:'https://console.cloud.google.com/apis/credentials'},{name:'Jira',key:'jira',details:'Release dates and linked preparation tasks',url:'https://id.atlassian.com/manage-profile/security/api-tokens'},{name:'OpenAI',key:'openai',details:'Independent evidence assessments and intent parsing',url:'https://platform.openai.com/api-keys'},{name:'Google Maps',key:'maps',details:'Billed Routes and Places; local daily request cap',url:'https://console.cloud.google.com/google/maps-apis'}].map(p=><section className="panel connection-card" key={p.key}><div className="provider-icon">{p.name.slice(0,1)}</div><h2>{p.name}</h2><p>{p.details}</p><Status value={mode==='fixture'?'fixture':state.credentials[p.key]?'credentials present':'not configured'}/><a href={p.url} target="_blank" rel="noreferrer">Provider setup <ArrowUpRight size={14}/></a>{state.connections?.find(c=>c.name===p.name)?.error&&<p className="error-text">{state.connections.find(c=>c.name===p.name).error}</p>}</section>)}</div><section className="panel"><div className="panel-heading"><h2>Local configuration</h2><Button variant="outline" onClick={()=>void act('/check',{}).catch(()=>{})}><RefreshCw size={15}/>Check connections</Button></div><div className="panel-body"><p>Run <code>npm run setup</code>, then edit <code>secrets.env</code> in the local data folder. Credentials stay on this computer and are never returned to the browser.</p><div className="path-box">{state.dataDir}</div><p className="muted">Follow docs/SETUP.md for OAuth, Slack scopes, authority IDs, resource selection, and sharing boundaries. Google Maps needs a billed project and the separate public policy URL.</p><h3 className="mt-6">Resource bindings and sharing rules</h3><p className="muted">Configure exact resource IDs, decision owners, confirmed office addresses, and approved audiences. Put no API keys in this editor.</p><Textarea className="config-editor" aria-label="Resource configuration JSON" value={configText} onChange={e=>setConfigText(e.target.value)} rows={18} disabled={mode==='fixture'}/><div className="button-row"><Button disabled={mode==='fixture'} onClick={()=>{try{void act('/config',JSON.parse(configText),'PUT').then(()=>toast.success('Configuration saved. Restart after changing tokens or Socket Mode settings.')).catch(()=>{});}catch{toast.error('Configuration must be valid JSON.');}}}>Save configuration</Button><Button variant="outline" disabled={mode==='fixture'} onClick={()=>{const value=JSON.parse(configText);value.entities.push({id:'client-meeting',title:'Client meeting',kind:'meeting',calendarId:'REPLACE_CALENDAR_ID',eventId:'REPLACE_EVENT_ID',slackChannelId:'REPLACE_CHANNEL_ID',threadTs:'REPLACE_THREAD_TIMESTAMP',authorityUserIds:['REPLACE_DECISION_OWNER_ID'],issueKey:'DEMO-42',clientMeeting:true});setConfigText(JSON.stringify(value,null,2));}}>Add meeting template</Button></div><p className="muted text-sm">Maps requests today: {state.mapsUsage.requests} / {state.config.maxMapsRequestsPerDay}. Provider billing may use multiple SKUs.</p></div></section></>}
-function Preferences({state,act}:{state:State;act:Act}){const[p,setP]=useState(state.config.preferences);return <section className="panel"><div className="panel-heading"><h2>Notification preferences</h2></div><form className="panel-body" onSubmit={e=>{e.preventDefault();void act('/preferences',p,'PUT').then(()=>toast.success('Preferences saved')).catch(()=>{});}}><div className="preference"><div><strong>Maintain approved relative reminders</strong><p>Recompute Reality Sync schedules after verified changes.</p></div><Switch checked={p.maintainRelative} onCheckedChange={v=>setP({...p,maintainRelative:v})}/></div><div className="preference"><div><strong>Automatically create departure reminders</strong><p>Only after you accept a trip with confirmed facts.</p></div><Switch checked={p.autoDeparture} onCheckedChange={v=>setP({...p,autoDeparture:v})}/></div><div className="preference"><div><strong>Pause automatic scanning</strong><p>Manual scans remain available. Unobserved changes cannot update schedules.</p></div><Switch checked={p.scanPaused} onCheckedChange={v=>setP({...p,scanPaused:v})}/></div><div className="form-grid"><Field label="Timezone"><Input value={p.timezone} onChange={e=>setP({...p,timezone:e.target.value})}/></Field>{([['morningHour','Tomorrow morning hour'],['afternoonHour','This afternoon hour'],['arrivalBuffer','Arrival buffer (minutes)'],['prepMinutes','Preparation block (minutes)']] as const).map(([key,label])=><Field key={key} label={label}><Input type="number" min="0" value={p[key]} onChange={e=>setP({...p,[key]:Number(e.target.value)})}/></Field>)}</div><div className="notice"><ShieldCheck size={18}/><span>Preparation creation and shared messages always require review. Calendar’s native reminders follow event times independently of these preferences.</span></div><Button type="submit">Save preferences</Button></form></section>}
+function ReminderPanel({
+  event,
+  state,
+  act,
+  intent,
+}: {
+  event: EventRevision;
+  state: State;
+  act: Act;
+  intent: any;
+}) {
+  const [minutes, setMinutes] = useState("30"),
+    [channel, setChannel] = useState("calendar"),
+    [rule, setRule] = useState("relative"),
+    [purpose, setPurpose] = useState("meeting"),
+    [at, setAt] = useState(""),
+    [preview, setPreview] = useState<any>(),
+    [prepStart, setPrepStart] = useState(""),
+    [block, setBlock] = useState<any>();
+  useEffect(() => {
+    if (!intent) return;
+    if (intent.intent.minutes !== null)
+      setMinutes(String(intent.intent.minutes));
+    if (intent.absoluteTime) {
+      setAt(intent.absoluteTime);
+      setRule("absolute");
+      setChannel(intent.intent.channel || "app");
+      setPurpose("preparation");
+    } else {
+      setRule("relative");
+      setChannel(intent.intent.channel || "calendar");
+    }
+  }, [intent]);
+  useEffect(
+    () => setPreview(undefined),
+    [purpose, rule, minutes, channel, at, event.revision],
+  );
+  const reminders = state.reminders.filter((r) => r.eventId === event.id);
+  const effective =
+    event.event.reminders?.useDefault !== false
+      ? event.defaults
+      : event.event.reminders.overrides || [];
+  const body = () => ({
+    eventId: event.id,
+    purpose,
+    rule,
+    minutes: Number(minutes),
+    channel,
+    ...(rule === "absolute" ? { at } : {}),
+  });
+  const run = (fn: () => Promise<any>) => void fn().catch(() => {});
+  return (
+    <div className="adapt-grid">
+      <div>
+        <h3>Reminder settings</h3>
+        <div className="native-reminders">
+          {effective.length ? (
+            effective.map((r, i) => (
+              <p key={i}>
+                <CheckCircle2 size={16} />
+                {r.minutes} minutes before · {r.method} ·{" "}
+                {date(
+                  event.nativeReminders?.[i]?.triggerAt,
+                  state.config.preferences.timezone,
+                )}
+              </p>
+            ))
+          ) : (
+            <p>No native Calendar reminders are configured.</p>
+          )}
+          <small>
+            Existing native offsets follow Calendar changes automatically.
+            Device delivery is not verified.
+          </small>
+        </div>
+        <form
+          className="form-grid"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(async () =>
+              setPreview(await act("/reminders/preview", body())),
+            );
+          }}
+        >
+          <Choice
+            label="Purpose"
+            value={purpose}
+            onChange={setPurpose}
+            options={[
+              ["meeting", "Meeting"],
+              ["preparation", "Preparation"],
+            ]}
+          />
+          <Choice
+            label="Timing rule"
+            value={rule}
+            onChange={(v) => {
+              setRule(v);
+              setPreview(undefined);
+              if (v === "absolute") setChannel("app");
+            }}
+            options={[
+              ["relative", "Before event"],
+              ["absolute", "Fixed date & time"],
+            ]}
+          />
+          {rule === "relative" ? (
+            <Field label="Minutes before">
+              <Input
+                type="number"
+                min="0"
+                max="40320"
+                value={minutes}
+                onChange={(e) => {
+                  setMinutes(e.target.value);
+                  setPreview(undefined);
+                }}
+              />
+            </Field>
+          ) : (
+            <Field label="Date/time with offset">
+              <Input
+                placeholder="2026-10-08T13:00:00-05:00"
+                value={at}
+                onChange={(e) => {
+                  setAt(e.target.value);
+                  setPreview(undefined);
+                }}
+                required
+              />
+            </Field>
+          )}
+          <Choice
+            label="Delivery channel"
+            value={channel}
+            onChange={(v) => {
+              setChannel(v);
+              setPreview(undefined);
+            }}
+            options={
+              rule === "relative"
+                ? [
+                    ["calendar", "Calendar reminder"],
+                    ["slack", "Personal Slack message"],
+                    ["app", "In-app inbox"],
+                  ]
+                : [
+                    ["slack", "Personal Slack message"],
+                    ["app", "In-app inbox"],
+                  ]
+            }
+          />
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={!!event.unresolved.length}
+          >
+            Preview reminder
+          </Button>
+        </form>
+        {preview && (
+          <div className="preview-card">
+            <h4>
+              {date(preview.triggerAt, state.config.preferences.timezone)}
+            </h4>
+            <p>
+              {preview.channel} · {preview.rule} · {preview.purpose}
+            </p>
+            {preview.warning && <p>{preview.warning}</p>}
+            {preview.existing && (
+              <p>Maintains the existing logical reminder.</p>
+            )}
+            <Button
+              onClick={() =>
+                run(async () => {
+                  await act("/reminders", {
+                    ...body(),
+                    expectedEventRevision: preview.eventRevision,
+                    expectedTriggerAt: preview.triggerAt,
+                  });
+                  setPreview(undefined);
+                  toast.success("Reminder approved");
+                })
+              }
+            >
+              Approve reminder
+            </Button>
+          </div>
+        )}
+        {reminders.map((r) => (
+          <div className="reminder-row" key={r.id}>
+            <div>
+              <strong>
+                {r.purpose} · {r.channel}
+              </strong>
+              <p>{date(r.triggerAt, state.config.preferences.timezone)}</p>
+              {r.lastError && <p className="error-text">{r.lastError}</p>}
+            </div>
+            <Status value={r.state} />
+            {!["canceled", "delivered", "missed"].includes(r.state) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  run(() => act("/reminders/" + r.id + "/cancel", {}))
+                }
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="prep-panel">
+        <h3>Preparation</h3>
+        {event.issue ? (
+          <>
+            <span className="tag">{event.issue.key}</span>
+            <h4>{event.issue.fields?.summary}</h4>
+            <p>
+              {event.issue.fields?.status?.name || "Status unknown"} · due{" "}
+              {event.issue.fields?.duedate || "not set"}
+            </p>
+            <p className="muted">
+              Meeting changes leave this task’s status and deadline intact.
+            </p>
+            <details>
+              <summary>Sourced preparation context</summary>
+              <p>
+                {typeof event.issue.fields?.description === "string"
+                  ? event.issue.fields.description
+                  : flattenDocument(event.issue.fields?.description)}
+              </p>
+              {state.config.jiraDatetimeField && (
+                <p>
+                  Configured datetime cutoff:{" "}
+                  {pretty(event.issue.fields?.[state.config.jiraDatetimeField])}
+                </p>
+              )}
+              <p className="muted">
+                A date-only deadline does not specify an hour.
+              </p>
+            </details>
+            {state.config.jiraBaseUrl && (
+              <a
+                className="text-link"
+                target="_blank"
+                rel="noreferrer"
+                href={`${state.config.jiraBaseUrl}/browse/${event.issue.key}`}
+              >
+                Open Jira <ArrowUpRight size={14} />
+              </a>
+            )}
+            <Field label="Preparation start (with timezone)">
+              <Input
+                value={prepStart}
+                onChange={(e) => {
+                  setPrepStart(e.target.value);
+                  setBlock(undefined);
+                }}
+                placeholder="2026-10-08T13:00:00-05:00"
+              />
+            </Field>
+            <Button
+              variant="outline"
+              onClick={() =>
+                run(async () =>
+                  setBlock(
+                    await act("/preparation/preview", {
+                      eventId: event.id,
+                      start: prepStart,
+                    }),
+                  ),
+                )
+              }
+            >
+              Check {state.config.preferences.prepMinutes}-minute slot
+            </Button>
+            {block && (
+              <div className="preview-card">
+                <p>
+                  {date(block.start)} – {date(block.end)}
+                </p>
+                <Status value={block.available ? "available" : "busy"} />
+                {block.available && (
+                  <Button
+                    onClick={() =>
+                      run(async () => {
+                        await act("/preparation", block);
+                        setBlock(undefined);
+                      })
+                    }
+                  >
+                    Approve personal block
+                  </Button>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="muted">
+            No Jira preparation task is explicitly linked to this occurrence.
+            Add an issue mapping in Connections.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TravelPanel({
+  event,
+  state,
+  act,
+  intent,
+}: {
+  event: EventRevision;
+  state: State;
+  act: Act;
+  intent: any;
+}) {
+  const [origin, setOrigin] = useState(state.config.savedOrigin?.address || ""),
+    [coords, setCoords] = useState<{ lat: number; lng: number }>(),
+    [destination, setDestination] = useState(""),
+    [stop, setStop] = useState("none"),
+    [dwell, setDwell] = useState("10"),
+    [buffer, setBuffer] = useState(
+      String(state.config.preferences.arrivalBuffer),
+    ),
+    [maxAdded, setMaxAdded] = useState("30"),
+    [connector, setConnector] = useState(""),
+    [result, setResult] = useState<any>(),
+    [accepted, setAccepted] = useState<string>(),
+    [geoError, setGeoError] = useState("");
+  const [originPlace, setOriginPlace] = useState<any>(),
+    [destinationPlace, setDestinationPlace] = useState<any>(),
+    [placeChoices, setPlaceChoices] = useState<any>(),
+    [resolveFor, setResolveFor] = useState<"origin" | "destination">("origin");
+  useEffect(() => {
+    if (intent?.intent.stop) {
+      setStop(intent.intent.stop);
+      setDwell(
+        intent.intent.stop === "ev"
+          ? "30"
+          : intent.intent.stop === "pharmacy"
+            ? "15"
+            : "10",
+      );
+    }
+    if (intent?.intent.maxAddedMinutes)
+      setMaxAdded(String(intent.intent.maxAddedMinutes));
+  }, [intent]);
+  const run = (fn: () => Promise<any>) => void fn().catch(() => {});
+  return (
+    <>
+      <div className="notice">
+        <MapPin size={18} />
+        <span>
+          Driving estimates with one optional stop. A confirmed personal
+          destination affects this trip only.
+        </span>
+      </div>
+      <form
+        className="form-grid travel-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setAccepted(undefined);
+          run(async () =>
+            setResult(
+              await act("/trips", {
+                eventId: event.id,
+                origin: coords
+                  ? { label: "My current location", ...coords, confirmed: true }
+                  : originPlace || {
+                      label: origin,
+                      address: origin,
+                      confirmed: true,
+                    },
+                ...(destination
+                  ? {
+                      destination: destinationPlace || {
+                        label: destination,
+                        address: destination,
+                        confirmed: true,
+                      },
+                    }
+                  : {}),
+                ...(stop !== "none"
+                  ? { stop, dwellMinutes: Number(dwell) }
+                  : {}),
+                bufferMinutes: Number(buffer),
+                maxAddedMinutes: Number(maxAdded),
+                ...(connector ? { connector } : {}),
+              }),
+            ),
+          );
+        }}
+      >
+        <Field label="Starting address">
+          <Input
+            value={coords ? "Current location confirmed" : origin}
+            onChange={(e) => {
+              setCoords(undefined);
+              setOriginPlace(undefined);
+              setOrigin(e.target.value);
+            }}
+            placeholder="Enter your current address"
+            required
+          />
+        </Field>
+        <div className="field">
+          <span>Or use device location</span>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (!navigator.geolocation) {
+                setGeoError("Location is unavailable; enter an address.");
+                return;
+              }
+              navigator.geolocation.getCurrentPosition(
+                (p) => {
+                  setCoords({
+                    lat: p.coords.latitude,
+                    lng: p.coords.longitude,
+                  });
+                  setGeoError("");
+                },
+                () =>
+                  setGeoError(
+                    "Location access was unavailable or denied. Enter an address.",
+                  ),
+                { timeout: 10000, maximumAge: 0 },
+              );
+            }}
+          >
+            Use my location
+          </Button>
+        </div>
+        <Field label="Personal destination override (optional)">
+          <Input
+            value={destination}
+            onChange={(e) => {
+              setDestinationPlace(undefined);
+              setDestination(e.target.value);
+            }}
+            placeholder={
+              state.config.places[event.event.location || ""]?.address ||
+              "Use confirmed meeting location"
+            }
+          />
+        </Field>
+        {state.mode === "live" && (
+          <div className="button-row">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                run(async () => {
+                  setResolveFor("origin");
+                  setPlaceChoices(
+                    await act("/places/resolve", { query: origin }),
+                  );
+                })
+              }
+            >
+              Resolve origin
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                run(async () => {
+                  setResolveFor("destination");
+                  setPlaceChoices(
+                    await act("/places/resolve", {
+                      query: destination || event.event.location || "",
+                    }),
+                  );
+                })
+              }
+            >
+              Resolve destination
+            </Button>
+          </div>
+        )}
+        {placeChoices && (
+          <div className="preview-card">
+            <h3>Choose {resolveFor} · Google Maps</h3>
+            {placeChoices.places.map((p: any) => (
+              <div key={p.placeId}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto text-left whitespace-normal mb-2"
+                  onClick={() => {
+                    if (resolveFor === "origin") {
+                      setOrigin(p.address || p.label);
+                      setOriginPlace(p);
+                      setCoords(undefined);
+                    } else {
+                      setDestination(p.address || p.label);
+                      setDestinationPlace(p);
+                    }
+                    setPlaceChoices(undefined);
+                  }}
+                >
+                  {p.label} · {p.address}
+                </Button>
+                <MapsCredits values={p.attributions} />
+              </div>
+            ))}
+            {!placeChoices.places.length && (
+              <p>No matching place. Add city or postal code to the address.</p>
+            )}
+          </div>
+        )}
+        <Choice
+          label="Optional stop"
+          value={stop}
+          onChange={(v) => {
+            setStop(v);
+            setDwell(v === "ev" ? "30" : v === "pharmacy" ? "15" : "10");
+          }}
+          options={[
+            ["none", "Direct route"],
+            ["gas", "Gas"],
+            ["coffee", "Coffee"],
+            ["pharmacy", "Pharmacy"],
+            ["ev", "EV charging"],
+          ]}
+        />
+        {stop !== "none" && (
+          <>
+            <Field label="Minutes at stop">
+              <Input
+                type="number"
+                min="0"
+                max="240"
+                value={dwell}
+                onChange={(e) => setDwell(e.target.value)}
+              />
+            </Field>
+            <Field label="Maximum added minutes">
+              <Input
+                type="number"
+                min="0"
+                max="240"
+                value={maxAdded}
+                onChange={(e) => setMaxAdded(e.target.value)}
+              />
+            </Field>
+          </>
+        )}
+        {stop === "ev" && (
+          <Choice
+            label="EV connector"
+            value={connector}
+            onChange={setConnector}
+            options={[
+              ["EV_CONNECTOR_TYPE_TESLA", "Tesla / NACS"],
+              ["EV_CONNECTOR_TYPE_CCS_COMBO_1", "CCS Combo 1"],
+              ["EV_CONNECTOR_TYPE_CCS_COMBO_2", "CCS Combo 2"],
+              ["EV_CONNECTOR_TYPE_CHADEMO", "CHAdeMO"],
+              ["EV_CONNECTOR_TYPE_J1772", "J1772"],
+            ]}
+          />
+        )}
+        <Field label="Arrival buffer (minutes)">
+          <Input
+            type="number"
+            min="0"
+            value={buffer}
+            onChange={(e) => setBuffer(e.target.value)}
+          />
+        </Field>
+        <Button type="submit">
+          Calculate trip <ArrowRight size={15} />
+        </Button>
+      </form>
+      {geoError && <ErrorBox text={geoError} />}
+      <MapsCredits values={originPlace?.attributions} />
+      <MapsCredits values={destinationPlace?.attributions} />
+      {result && (
+        <div className="trip-results">
+          <p className="muted">{result.message}</p>
+          {result.quotes.map((q: TripQuote) => (
+            <article className="trip-card" key={q.id}>
+              <div className="trip-heading">
+                <div>
+                  <p className="eyebrow">
+                    {q.mode === "fixture"
+                      ? "SYNTHETIC FIXTURE"
+                      : "GOOGLE MAPS ESTIMATE"}
+                  </p>
+                  <h3>{q.stop?.label || "Direct to meeting"}</h3>
+                </div>
+                <Status value={q.fits ? "within limits" : "outside limits"} />
+              </div>
+              <p className="muted">
+                {q.origin.label} → {q.destination.label}
+              </p>
+              <div className="trip-timing">
+                <div>
+                  <small>Leave around</small>
+                  <strong>
+                    {date(q.departureAt, state.config.preferences.timezone)}
+                  </strong>
+                </div>
+                <div>
+                  <small>Driving + stop</small>
+                  <strong>
+                    {Math.round(q.driveSeconds / 60)} + {q.dwellMinutes} min
+                  </strong>
+                </div>
+                <div>
+                  <small>Arrival estimate</small>
+                  <strong>
+                    {date(q.arrivalAt, state.config.preferences.timezone)}
+                  </strong>
+                </div>
+              </div>
+              <p>
+                {Math.ceil(q.addedSeconds / 60)} added minutes ·{" "}
+                {q.bufferMinutes}-minute arrival buffer
+              </p>
+              <p className="muted text-sm">
+                Calculated {date(q.calculatedAt)} ·{" "}
+                {q.trafficAvailable ? "Traffic-aware" : "Traffic unavailable"}
+              </p>
+              {q.warnings.map((w) => (
+                <p className="route-warning" key={w}>
+                  {w}
+                </p>
+              ))}
+              {!!q.availability && (
+                <details>
+                  <summary>Reported EV availability (may change)</summary>
+                  <pre>{JSON.stringify(q.availability, null, 2)}</pre>
+                </details>
+              )}
+              <MapsCredits values={q.attributions} />
+              <div className="button-row">
+                <Button
+                  disabled={!q.fits}
+                  variant="outline"
+                  onClick={() =>
+                    run(async () => {
+                      await act("/trips/" + q.id + "/accept", {});
+                      setAccepted(q.id);
+                    })
+                  }
+                >
+                  {accepted === q.id ? "Trip accepted" : "Accept this trip"}
+                </Button>
+                {accepted === q.id && (
+                  <Button
+                    onClick={() =>
+                      run(async () => {
+                        await act("/reminders", {
+                          eventId: event.id,
+                          purpose: "departure",
+                          rule: "departure",
+                          channel: "slack",
+                          tripId: q.id,
+                          minutes: 0,
+                          expectedEventRevision: q.eventRevision,
+                          expectedTriggerAt: q.departureAt,
+                        });
+                        toast.success("Departure reminder approved");
+                      })
+                    }
+                  >
+                    Approve departure reminder
+                  </Button>
+                )}
+                {q.mode === "live" && (
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      run(async () => {
+                        const data = await act("/trips/" + q.id + "/handoff");
+                        window.open(data.url, "_blank", "noopener,noreferrer");
+                      })
+                    }
+                  >
+                    Open Google Maps <ArrowUpRight size={15} />
+                  </Button>
+                )}
+              </div>
+            </article>
+          ))}
+          {result.attribution === "Google Maps" && (
+            <p className="maps-attribution">
+              Google Maps ·{" "}
+              <a href={state.config.policyUrl} target="_blank" rel="noreferrer">
+                Terms & privacy
+              </a>
+            </p>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+function MapsCredits({
+  values,
+}: {
+  values?: { provider?: string; providerUri?: string }[];
+}) {
+  return values?.length ? (
+    <p className="maps-attribution">
+      {values.map((v, i) =>
+        /^https:\/\//.test(v.providerUri || "") ? (
+          <a key={i} href={v.providerUri} target="_blank" rel="noreferrer">
+            {v.provider || "Data provider"}{" "}
+          </a>
+        ) : (
+          <span key={i}>{v.provider || "Data provider"} </span>
+        ),
+      )}
+    </p>
+  ) : null;
+}
+
+function MessagePanel({
+  event,
+  state,
+  act,
+}: {
+  event: EventRevision;
+  state: State;
+  act: Act;
+}) {
+  const [category, setCategory] = useState("update"),
+    [kind, setKind] = useState("slack"),
+    [target, setTarget] = useState(
+      state.config.entities.find((e) => e.id === event.id)?.slackChannelId ||
+        "",
+    ),
+    [mapping, setMapping] = useState<any>(),
+    [visibility, setVisibility] = useState("");
+  const run = (fn: () => Promise<any>) => void fn().catch(() => {});
+  return (
+    <>
+      <div className="form-grid">
+        <Choice
+          label="Draft category"
+          value={category}
+          onChange={setCategory}
+          options={[
+            ["update", "Verified correction update"],
+            ["clarification", "Ask for clarification"],
+            ["consequence", "Preparation / consequence"],
+          ]}
+        />
+        <Choice
+          label="Destination"
+          value={kind}
+          onChange={setKind}
+          options={[
+            ["slack", "Slack channel or user"],
+            ["jira", "Jira comment"],
+            ["manual", "External manual draft"],
+          ]}
+        />
+        <Field
+          label={
+            kind === "jira"
+              ? "Jira issue key"
+              : "Exact channel / user / recipient"
+          }
+        >
+          <Input value={target} onChange={(e) => setTarget(e.target.value)} />
+        </Field>
+        {kind === "jira" && (
+          <Field label="Restrict comment to role (when applicable)">
+            <Input
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value)}
+              placeholder="For example: Administrators"
+            />
+          </Field>
+        )}
+        <Button
+          variant="outline"
+          onClick={() =>
+            run(() =>
+              act("/drafts", {
+                entityId: event.id,
+                category,
+                audience: {
+                  kind,
+                  target,
+                  ...(visibility && kind === "jira"
+                    ? { visibility: { type: "role", value: visibility } }
+                    : {}),
+                },
+              }),
+            )
+          }
+        >
+          Prepare draft <MessageSquare size={16} />
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={() =>
+            run(async () =>
+              setMapping(
+                await act(
+                  "/events/" + encodeURIComponent(event.id) + "/attendees",
+                ),
+              ),
+            )
+          }
+        >
+          Check attendee mappings
+        </Button>
+      </div>
+      {mapping && (
+        <div className="preview-card">
+          <strong>
+            {mapping.allMapped
+              ? "All attendee identities verified"
+              : "Attendee mapping incomplete"}
+          </strong>
+          {mapping.attendees.map((a: any) => (
+            <p key={a.email}>
+              {a.email} → {a.slackId || "Manual communication required"}
+              {a.slackId && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setKind("slack");
+                    setTarget(a.slackId);
+                  }}
+                >
+                  Choose recipient
+                </Button>
+              )}
+            </p>
+          ))}
+          {!mapping.attendees.length && (
+            <p>No attendees are listed on this event.</p>
+          )}
+          <p className="muted">
+            Each exact audience is reviewed before sending. Unmapped people have
+            not been notified.
+          </p>
+          {mapping.allMapped && (
+            <Button
+              variant="outline"
+              onClick={() =>
+                run(() =>
+                  act(
+                    "/events/" +
+                      encodeURIComponent(event.id) +
+                      "/attendees/drafts",
+                    { category },
+                  ),
+                )
+              }
+            >
+              Prepare drafts for all attendees
+            </Button>
+          )}
+        </div>
+      )}
+      <div className="drafts">
+        {state.drafts
+          .filter((d) => d.entityId === event.id)
+          .map((d) => (
+            <DraftEditor key={d.id + ":" + d.revision} draft={d} act={act} />
+          ))}
+      </div>
+    </>
+  );
+}
+function DraftEditor({ draft, act }: { draft: MessageDraft; act: Act }) {
+  const [text, setText] = useState(draft.text),
+    [sendOpen, setSendOpen] = useState(false);
+  const dirty = text !== draft.text;
+  const run = (fn: () => Promise<any>) => void fn().catch(() => {});
+  return (
+    <article className="draft-card">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">{draft.category.toUpperCase()}</p>
+          <h3>
+            {draft.audience.kind}: {draft.audience.target}
+          </h3>
+        </div>
+        <Status value={draft.state} />
+      </div>
+      <div className="panel-body">
+        <Textarea
+          aria-label="Exact message text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          disabled={draft.state !== "review"}
+          rows={7}
+        />
+        <details className="mt-3">
+          <summary>Supporting facts and disclosure</summary>
+          {draft.facts.map((f, i) => (
+            <p key={i}>{f}</p>
+          ))}
+          <p className="muted">
+            Recipient access and current facts are rechecked at send time.
+          </p>
+        </details>
+        <div className="button-row">
+          {draft.state === "review" && (
+            <>
+              <Button
+                variant="outline"
+                disabled={!dirty}
+                onClick={() =>
+                  run(() =>
+                    act(
+                      "/drafts/" + draft.id,
+                      { revision: draft.revision, text },
+                      "PUT",
+                    ),
+                  )
+                }
+              >
+                Save edit
+              </Button>
+              {draft.audience.kind !== "manual" ? (
+                <Button disabled={dirty} onClick={() => setSendOpen(true)}>
+                  Review send
+                </Button>
+              ) : (
+                <Button
+                  onClick={() =>
+                    run(async () => {
+                      await navigator.clipboard.writeText(text);
+                      toast.success("Manual draft copied");
+                    })
+                  }
+                >
+                  Copy manual draft
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  run(() =>
+                    act("/drafts/" + draft.id + "/dismiss", {
+                      revision: draft.revision,
+                    }),
+                  )
+                }
+              >
+                Dismiss
+              </Button>
+              {draft.planId && !draft.control && (
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    run(() =>
+                      act("/slack/review", {
+                        planId: draft.planId,
+                        draftId: draft.id,
+                      }),
+                    )
+                  }
+                >
+                  Prepare Slack controls
+                </Button>
+              )}
+            </>
+          )}
+          {draft.state === "uncertain" && (
+            <Button
+              variant="outline"
+              onClick={() =>
+                run(() => act("/drafts/" + draft.id + "/recover", {}))
+              }
+            >
+              Check message presence
+            </Button>
+          )}
+          {draft.state === "verified" && (
+            <p className="verified-note">
+              <CheckCircle2 size={16} />
+              Presence verified. Readership unknown.
+            </p>
+          )}
+          {draft.state === "stale" && (
+            <p className="muted">Facts changed. Prepare a fresh draft.</p>
+          )}
+        </div>
+      </div>
+      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send this exact message</DialogTitle>
+            <DialogDescription>
+              {draft.audience.kind}: {draft.audience.target}. Confirm this
+              audience can receive the content.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="send-preview">{draft.text}</div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                run(async () => {
+                  await act("/drafts/" + draft.id + "/send", {
+                    revision: draft.revision,
+                  });
+                  setSendOpen(false);
+                })
+              }
+            >
+              Approve & send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </article>
+  );
+}
+
+function Connections({
+  state,
+  mode,
+  act,
+}: {
+  state: State;
+  mode: Mode;
+  act: Act;
+}) {
+  const [configText, setConfigText] = useState(
+    JSON.stringify(state.config, null, 2),
+  );
+  return (
+    <>
+      <div className="connection-grid">
+        {[
+          {
+            name: "Slack",
+            key: "slack",
+            details: "Evidence, reviewed messages, and personal reminders",
+            url: "https://api.slack.com/apps",
+          },
+          {
+            name: "Google Calendar",
+            key: "calendar",
+            details: "Events, user reminders, and personal prep blocks",
+            url: "https://console.cloud.google.com/apis/credentials",
+          },
+          {
+            name: "Jira",
+            key: "jira",
+            details: "Release dates and linked preparation tasks",
+            url: "https://id.atlassian.com/manage-profile/security/api-tokens",
+          },
+          {
+            name: "OpenAI",
+            key: "openai",
+            details: "Independent evidence assessments and intent parsing",
+            url: "https://platform.openai.com/api-keys",
+          },
+          {
+            name: "Google Maps",
+            key: "maps",
+            details: "Billed Routes and Places; local daily request cap",
+            url: "https://console.cloud.google.com/google/maps-apis",
+          },
+        ].map((p) => (
+          <section className="panel connection-card" key={p.key}>
+            <div className="provider-icon">{p.name.slice(0, 1)}</div>
+            <h2>{p.name}</h2>
+            <p>{p.details}</p>
+            <Status
+              value={
+                mode === "fixture"
+                  ? "fixture"
+                  : state.credentials[p.key]
+                    ? "credentials present"
+                    : "not configured"
+              }
+            />
+            <a href={p.url} target="_blank" rel="noreferrer">
+              Provider setup <ArrowUpRight size={14} />
+            </a>
+            {state.connections?.find((c) => c.name === p.name)?.error && (
+              <p className="error-text">
+                {state.connections.find((c) => c.name === p.name).error}
+              </p>
+            )}
+          </section>
+        ))}
+      </div>
+      <section className="panel">
+        <div className="panel-heading">
+          <h2>Local configuration</h2>
+          <Button
+            variant="outline"
+            onClick={() => void act("/check", {}).catch(() => {})}
+          >
+            <RefreshCw size={15} />
+            Check connections
+          </Button>
+        </div>
+        <div className="panel-body">
+          <p>
+            Run <code>npm run setup</code>, then edit <code>secrets.env</code>{" "}
+            in the local data folder. Credentials stay on this computer and are
+            never returned to the browser.
+          </p>
+          <div className="path-box">{state.dataDir}</div>
+          <p className="muted">
+            Follow docs/SETUP.md for OAuth, Slack scopes, authority IDs,
+            resource selection, and sharing boundaries. Google Maps needs a
+            billed project and the separate public policy URL.
+          </p>
+          <h3 className="mt-6">Resource bindings and sharing rules</h3>
+          <p className="muted">
+            Configure exact resource IDs, decision owners, confirmed office
+            addresses, and approved audiences. Put no API keys in this editor.
+          </p>
+          <Textarea
+            className="config-editor"
+            aria-label="Resource configuration JSON"
+            value={configText}
+            onChange={(e) => setConfigText(e.target.value)}
+            rows={18}
+            disabled={mode === "fixture"}
+          />
+          <div className="button-row">
+            <Button
+              disabled={mode === "fixture"}
+              onClick={() => {
+                try {
+                  void act("/config", JSON.parse(configText), "PUT")
+                    .then(() =>
+                      toast.success(
+                        "Configuration saved. Restart after changing tokens or Socket Mode settings.",
+                      ),
+                    )
+                    .catch(() => {});
+                } catch {
+                  toast.error("Configuration must be valid JSON.");
+                }
+              }}
+            >
+              Save configuration
+            </Button>
+            <Button
+              variant="outline"
+              disabled={mode === "fixture"}
+              onClick={() => {
+                const value = JSON.parse(configText);
+                value.entities.push({
+                  id: "client-meeting",
+                  title: "Client meeting",
+                  kind: "meeting",
+                  calendarId: "REPLACE_CALENDAR_ID",
+                  eventId: "REPLACE_EVENT_ID",
+                  slackChannelId: "REPLACE_CHANNEL_ID",
+                  threadTs: "REPLACE_THREAD_TIMESTAMP",
+                  authorityUserIds: ["REPLACE_DECISION_OWNER_ID"],
+                  issueKey: "DEMO-42",
+                  clientMeeting: true,
+                });
+                setConfigText(JSON.stringify(value, null, 2));
+              }}
+            >
+              Add meeting template
+            </Button>
+          </div>
+          <p className="muted text-sm">
+            Maps requests today: {state.mapsUsage.requests} /{" "}
+            {state.config.maxMapsRequestsPerDay}. Provider billing may use
+            multiple SKUs.
+          </p>
+        </div>
+      </section>
+    </>
+  );
+}
+function Preferences({ state, act }: { state: State; act: Act }) {
+  const [p, setP] = useState(state.config.preferences);
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <h2>Notification preferences</h2>
+      </div>
+      <form
+        className="panel-body"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void act("/preferences", p, "PUT")
+            .then(() => toast.success("Preferences saved"))
+            .catch(() => {});
+        }}
+      >
+        <div className="preference">
+          <div>
+            <strong>Maintain approved relative reminders</strong>
+            <p>Recompute Reality Sync schedules after verified changes.</p>
+          </div>
+          <Switch
+            checked={p.maintainRelative}
+            onCheckedChange={(v) => setP({ ...p, maintainRelative: v })}
+          />
+        </div>
+        <div className="preference">
+          <div>
+            <strong>Automatically create departure reminders</strong>
+            <p>Only after you accept a trip with confirmed facts.</p>
+          </div>
+          <Switch
+            checked={p.autoDeparture}
+            onCheckedChange={(v) => setP({ ...p, autoDeparture: v })}
+          />
+        </div>
+        <div className="preference">
+          <div>
+            <strong>Pause automatic scanning</strong>
+            <p>
+              Manual scans remain available. Unobserved changes cannot update
+              schedules.
+            </p>
+          </div>
+          <Switch
+            checked={p.scanPaused}
+            onCheckedChange={(v) => setP({ ...p, scanPaused: v })}
+          />
+        </div>
+        <div className="form-grid">
+          <Field label="Timezone">
+            <Input
+              value={p.timezone}
+              onChange={(e) => setP({ ...p, timezone: e.target.value })}
+            />
+          </Field>
+          {(
+            [
+              ["morningHour", "Tomorrow morning hour"],
+              ["afternoonHour", "This afternoon hour"],
+              ["arrivalBuffer", "Arrival buffer (minutes)"],
+              ["prepMinutes", "Preparation block (minutes)"],
+            ] as const
+          ).map(([key, label]) => (
+            <Field key={key} label={label}>
+              <Input
+                type="number"
+                min="0"
+                value={p[key]}
+                onChange={(e) => setP({ ...p, [key]: Number(e.target.value) })}
+              />
+            </Field>
+          ))}
+        </div>
+        <div className="notice">
+          <ShieldCheck size={18} />
+          <span>
+            Preparation creation and shared messages always require review.
+            Calendar’s native reminders follow event times independently of
+            these preferences.
+          </span>
+        </div>
+        <Button type="submit">Save preferences</Button>
+      </form>
+    </section>
+  );
+}
+
+function flattenDocument(value: any): string {
+  return [value?.text || "", ...(value?.content || []).map(flattenDocument)]
+    .filter(Boolean)
+    .join(" ");
+}

@@ -1,8 +1,85 @@
-import type {ConfigT,RepairPlan,EventRevision,Reminder,MessageDraft} from '../../server/contracts';
-export type Mode='live'|'fixture';
-export interface State {mode:Mode;config:ConfigT;plans:RepairPlan[];events:EventRevision[];runs:any[];approvals:any[];reminders:Reminder[];drafts:MessageDraft[];inbox:any[];effects:any[];jobs:any[];connections?:any[];credentials:Record<string,boolean>;dataDir:string;scanErrors:any[];lastScan?:{at:string};mapsUsage:{requests:number};next:any;}
-let csrf='';
-export async function session(){const r=await fetch('/api/session');if(!r.ok)throw new Error('The local backend is unavailable. Start npm run dev.');csrf=((await r.json()) as {csrf:string}).csrf;}
-export async function api<T=any>(path:string,mode:Mode='live',body?:unknown,method=body===undefined?'GET':'POST'):Promise<T>{if(!csrf)await session();const r=await fetch('/api'+path,{method,headers:{'Content-Type':'application/json','x-csrf-token':csrf,'x-reality-mode':mode},...(body!==undefined?{body:JSON.stringify(body)}:{})});if(r.status===401){csrf='';throw new Error('Session expired. Reload the app.');}const data:any=await r.json();if(!r.ok)throw new Error(data.error||'Request failed');return data;}
-export function date(value?:string,zone='America/Chicago'){if(!value)return'—';if(/^\d{4}-\d{2}-\d{2}$/.test(value))return new Intl.DateTimeFormat('en-US',{dateStyle:'medium',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));const d=new Date(value);return Number.isFinite(d.valueOf())?new Intl.DateTimeFormat('en-US',{dateStyle:'medium',timeStyle:'short',timeZone:zone}).format(d):value;}
-export function pretty(value:unknown):string{if(value==null)return'Not set';if(typeof value==='string')return value;if(typeof value==='object'&&('dateTime' in value||'date' in value))return date((value as any).dateTime||(value as any).date,(value as any).timeZone);return JSON.stringify(value,null,2);}
+import type {
+  ConfigT,
+  RepairPlan,
+  EventRevision,
+  Reminder,
+  MessageDraft,
+} from "../../server/contracts";
+export type Mode = "live" | "fixture";
+export interface State {
+  mode: Mode;
+  config: ConfigT;
+  plans: RepairPlan[];
+  events: EventRevision[];
+  runs: any[];
+  approvals: any[];
+  reminders: Reminder[];
+  drafts: MessageDraft[];
+  inbox: any[];
+  effects: any[];
+  jobs: any[];
+  connections?: any[];
+  credentials: Record<string, boolean>;
+  dataDir: string;
+  scanErrors: any[];
+  lastScan?: { at: string };
+  mapsUsage: { requests: number };
+  next: any;
+}
+let csrf = "";
+export async function session() {
+  const r = await fetch("/api/session");
+  if (!r.ok)
+    throw new Error("The local backend is unavailable. Start npm run dev.");
+  csrf = ((await r.json()) as { csrf: string }).csrf;
+}
+export async function api<T = any>(
+  path: string,
+  mode: Mode = "live",
+  body?: unknown,
+  method = body === undefined ? "GET" : "POST",
+): Promise<T> {
+  if (!csrf) await session();
+  const r = await fetch("/api" + path, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "x-csrf-token": csrf,
+      "x-reality-mode": mode,
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  if (r.status === 401) {
+    csrf = "";
+    throw new Error("Session expired. Reload the app.");
+  }
+  const data: any = await r.json();
+  if (!r.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+export function date(value?: string, zone = "America/Chicago") {
+  if (!value) return "—";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value))
+    return new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    }).format(new Date(value + "T12:00:00Z"));
+  const d = new Date(value);
+  return Number.isFinite(d.valueOf())
+    ? new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: zone,
+      }).format(d)
+    : value;
+}
+export function pretty(value: unknown): string {
+  if (value == null) return "Not set";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && ("dateTime" in value || "date" in value))
+    return date(
+      (value as any).dateTime || (value as any).date,
+      (value as any).timeZone,
+    );
+  return JSON.stringify(value, null, 2);
+}

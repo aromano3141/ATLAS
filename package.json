@@ -1,6 +1,35 @@
 {
-  "name":"reality-sync","version":"0.1.0","private":true,"type":"module","engines":{"node":">=24.0.0"},
-  "scripts":{"dev":"node scripts/dev.mjs","server":"tsx server/index.ts","setup":"tsx scripts/setup.ts","check":"tsc --noEmit && npm --prefix web exec tsc -- --noEmit","test":"tsx --test tests/*.test.ts","build":"npm --prefix web run build","live:check":"tsx scripts/live-check.ts","demo:recovery":"tsx scripts/recovery-demo.ts"},
-  "dependencies":{"@hono/node-server":"^1.19.0","@js-temporal/polyfill":"^0.5.1","@slack/bolt":"^4.4.0","dotenv":"^17.2.0","hono":"^4.9.0","openai":"^6.0.0","zod":"^3.25.76"},
-  "devDependencies":{"@types/node":"^24.0.0","tsx":"^4.20.0","typescript":"^5.9.3"}
+  "name": "reality-sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "server": "tsx server/index.ts",
+    "setup": "tsx scripts/setup.ts",
+    "check": "node scripts/check.mjs",
+    "test": "tsx --test tests/*.test.ts",
+    "build": "node scripts/build.mjs",
+    "live:check": "tsx scripts/live-check.ts",
+    "demo:recovery": "tsx scripts/recovery-demo.ts",
+    "test:http": "tsx scripts/http-smoke.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.0",
+    "@js-temporal/polyfill": "^0.5.1",
+    "@slack/bolt": "^4.4.0",
+    "dotenv": "^17.2.0",
+    "hono": "^4.9.0",
+    "openai": "^6.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "prettier": "^3.9.6",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3"
+  }
 }
