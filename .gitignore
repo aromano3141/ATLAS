@@ -1,0 +1,40 @@
+# Credentials and environment configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+.dev.vars
+.dev.vars.*
+credentials.json
+token.json
+client_secret*.json
+*.pem
+*.key
+
+# Local evidence, databases, and runtime state
+.data/
+.local/
+data/local/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+.wrangler/
+
+# Dependencies, generated output, and caches
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+*.log
+.venv/
+__pycache__/
+.pytest_cache/
+
+# OS/editor state
+.DS_Store
+Thumbs.db
