@@ -9,7 +9,7 @@ Reality Sync is a local application that detects conflicting project facts acros
 ## For hackathon judges
 
 - **Public source:** [aromano3141/ATLAS](https://github.com/aromano3141/ATLAS). No repository invitation is required.
-- **Two-minute demo video:** **Link pending from the presenter.** It will be added here before submission; a public recording is not linked yet.
+- **Two-minute demo video:** [Watch Reality Sync in action on YouTube](https://youtu.be/AIgFjlDRNXs).
 - **Interactive walkthrough:** run the app below, then choose **Demo Mission Control** in its sidebar. Demo Replay needs no provider credentials.
 - **Technical evidence:** [validation record](docs/VALIDATION.md), [test suite](tests), [master plan](docs/PLAN.md), and [presentation guide](docs/MISSION_CONTROL.md).
 
