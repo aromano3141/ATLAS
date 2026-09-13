@@ -6,6 +6,9 @@
   business publication workflows until the user requests the next phase.
 - Keep evidence, independent assessments, approval, real writes, recovery, and
   external-state verification in the first-run scope.
+- For the operator-requested Atlas October 2 demo date repair, agents are UI-only.
+  Use the explicit operator instruction, exact preview, button approval, real
+  Calendar/Jira writes and readback; do not claim Slack/model authorization.
 - Run the app locally. Only a separate Terms/Privacy policy site may be public.
 - Require audience checks and revision-bound approvals for reviewed messages.
 - Distinguish notification settings, message presence from

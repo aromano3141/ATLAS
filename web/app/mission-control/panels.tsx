@@ -110,18 +110,21 @@ export function SourceCards({
             : provider === "slack"
               ? "Slack"
               : "Jira";
-        const status = reading
-          ? "Reading current records…"
-          : (op?.state ??
-            (provider === "slack"
-              ? reply
-                ? "Expected reply found"
-                : data?.snapshot
-                  ? "Thread read · inspect evidence"
-                  : "Waiting for thread"
-              : value
-                ? "Read from source"
-                : "Not available"));
+        const status =
+          provider === "slack" && data?.plan?.operatorDate
+            ? "Not used · operator date override"
+            : reading
+              ? "Reading current records…"
+              : (op?.state ??
+                (provider === "slack"
+                  ? reply
+                    ? "Expected reply found"
+                    : data?.snapshot
+                      ? "Thread read · inspect evidence"
+                      : "Waiting for thread"
+                  : value
+                    ? "Read from source"
+                    : "Not available"));
         return (
           <button
             onClick={onInspect}
@@ -336,15 +339,17 @@ export function AgentCards({
           initial.find((a) => a.role === role);
         const last = events.filter((e) => e.role === role).at(-1);
         const following = last?.round === "followup" && !followup.length;
-        const state = following
-          ? "Follow-up"
-          : a
-            ? "Committed"
-            : last?.kind === "assessment_sealed"
-              ? "Sealed"
-              : last
-                ? "Assessing"
-                : "Ready";
+        const state = data?.plan?.operatorDate
+          ? "UI only"
+          : following
+            ? "Follow-up"
+            : a
+              ? "Committed"
+              : last?.kind === "assessment_sealed"
+                ? "Sealed"
+                : last
+                  ? "Assessing"
+                  : "Ready";
         const failed = data?.progress?.state === "failed" && !a;
         return (
           <section

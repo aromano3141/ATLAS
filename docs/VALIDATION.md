@@ -95,3 +95,19 @@ This supersedes the earlier statement about Mission Control browser testing only
 the original workspace's entire browser surface was not re-tested. Live approved
 writes, real successful-write timeout recovery, and delivery/readership remain
 outside this read-only development validation. Replay operations are simulated.
+
+## Operator-directed Atlas date repair
+
+The user subsequently requested a main-app timing-issue card and a direct button
+to change Calendar/Jira to October 2, with agents UI-only. The main workspace
+now reads both resources, displays their actual dates and the requested date,
+and uses that button as explicit approval for the existing durable executor.
+This path records an operator instruction rather than inventing a Slack decision
+or model assessment. It bypasses Slack/model calls for this entity's repair.
+
+49 deterministic tests pass, including three additional tests for this path:
+exact all-day patches with approval before writes and unrelated-field preservation,
+partial Jira failure/recovery without repeating Calendar, and concurrent Calendar
+edit rejection. Type checks and production build pass. Browser inspection confirmed
+the live main-app timing issue and September 30 → October 2 previews with an enabled
+action button. The agent did not click the live write button during development.

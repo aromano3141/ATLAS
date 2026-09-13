@@ -42,6 +42,13 @@ fresh reads and backend progress events, with no silent replay fallback. The
 presentation uses the September 30 → October 2 all-day milestone scenario and
 an explicitly labeled optional recovery replay. See MISSION_CONTROL.md.
 
+For the operator-requested Atlas launch demonstration, the main app also provides
+a direct October 2, 2026 repair. This explicitly recorded operator date replaces
+model/Slack truth selection for that configured entity only; agent panels are
+presentation-only. Fresh Calendar/Jira reads generate the exact patch, and the
+visible button approves and queues the normal durable executor. ETag/preflight,
+unrelated-field preservation, separate outcomes and independent verification remain.
+
 Zod contracts cover original Evidence/Assessment/Decision/RepairPlan/RepairAction/
 Approval/VerificationObservation plus:
 

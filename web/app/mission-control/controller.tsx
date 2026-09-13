@@ -325,11 +325,13 @@ export default function MissionControl() {
               {stamp(data.snapshot.retrievedAt)}
             </span>
             <span>
-              {expectedReply(data)
-                ? `October 2 reply found · ${data.entity.authorityUserIds.includes(expectedReply(data)!.authorId) ? "configured owner matches" : "author is not an owner"}`
-                : "Requested October 2 reply not found in this thread read"}
+              {data.plan?.operatorDate
+                ? "Operator-requested October 2 repair · agents are presentation-only"
+                : expectedReply(data)
+                  ? `October 2 reply found · ${data.entity.authorityUserIds.includes(expectedReply(data)!.authorId) ? "configured owner matches" : "author is not an owner"}`
+                  : "Requested October 2 reply not found in this thread read"}
             </span>
-            {data.progress?.reused && (
+            {data.progress?.reused && !data.plan?.operatorDate && (
               <span>Prior assessments reused · evidence unchanged</span>
             )}
           </div>

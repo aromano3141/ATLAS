@@ -66,6 +66,56 @@ export class RealityService {
   events() {
     return this.store.all<EventRevision>("event");
   }
+  async prepareOperatorLaunch() {
+    const entity = this.entity("atlas-launch");
+    assert(entity.kind === "launch", "Atlas must be configured as a launch.");
+    this.store.put("operatorDate", entity.id, {
+      date: "2026-10-02",
+      requestedBy: "operator",
+      source: "Explicit operator demo date override",
+    });
+    return this.scanEntity(entity, true);
+  }
+  async operatorSnapshot(entity: EntityT): Promise<Snapshot> {
+    assert(
+      entity.kind === "launch" && entity.jiraVersionId,
+      "A configured launch and Jira version are required.",
+    );
+    const [calendar, jira, defaults] = await Promise.all([
+      this.providers.calendarGet(entity.calendarId, entity.eventId),
+      this.providers.jiraGet(entity.jiraVersionId),
+      this.providers.calendarDefaults(entity.calendarId),
+    ]);
+    assert(
+      calendar.id === entity.eventId &&
+        String(jira.id) === entity.jiraVersionId,
+      "Provider resource identity does not match configuration.",
+    );
+    assert(
+      calendar.start?.date && calendar.end?.date,
+      "The launch must remain an all-day milestone.",
+    );
+    assert(
+      !jira.released,
+      "This override is only for the unreleased demo version.",
+    );
+    if (jira.projectId !== undefined)
+      assert(
+        String(jira.projectId) === entity.jiraProjectId,
+        "Jira project does not match configuration.",
+      );
+    return {
+      id: hash(["operator-date", entity, calendar, jira, defaults]),
+      entity,
+      calendar,
+      jira,
+      defaults,
+      evidence: [],
+      complete: true,
+      warnings: [],
+      retrievedAt: now(),
+    };
+  }
   async scan() {
     const results = [];
     for (const e of this.config().entities) {
@@ -146,8 +196,12 @@ export class RealityService {
     }
   }
   private async scanEntityRun(entity: EntityT, readOnly: boolean) {
-    const s = await this.providers.snapshot(entity);
-    await this.enrichClarifications(s);
+    const operatorDate = this.store.get("operatorDate", entity.id)?.date as
+      string | undefined;
+    const s = operatorDate
+      ? await this.operatorSnapshot(entity)
+      : await this.providers.snapshot(entity);
+    if (!operatorDate) await this.enrichClarifications(s);
     s.id = hash([s.id, sourceDigest(s)]);
     this.store.immutable("snapshot", s.id, s);
     this.store.put("missionSnapshot", entity.id, s);
@@ -236,18 +290,30 @@ export class RealityService {
       });
       return { entityId: entity.id, planId: plan.id, status: "inactive" };
     }
-    const result = await investigate(
-      this.engine,
-      s,
-      (a) =>
-        this.store.immutable("assessment", hash([s.id, a]), {
-          snapshotId: s.id,
-          initial: a,
-          committedAt: now(),
-        }),
-      (kind, detail) => this.missionProgress(entity.id, kind, detail),
-    );
+    const result = operatorDate
+      ? {
+          canonical: { launchDate: operatorDate },
+          unresolved: [],
+          claims: [],
+          initial: [],
+          followup: [],
+        }
+      : await investigate(
+          this.engine,
+          s,
+          (a) =>
+            this.store.immutable("assessment", hash([s.id, a]), {
+              snapshotId: s.id,
+              initial: a,
+              committedAt: now(),
+            }),
+          (kind, detail) => this.missionProgress(entity.id, kind, detail),
+        );
     const { canonical, unresolved } = result;
+    assert(
+      this.store.get("operatorDate", entity.id)?.date === operatorDate,
+      "The operator instruction changed during investigation. Refresh the preview.",
+    );
     const planId = planRevision(s.id, canonical);
     const actions: RepairAction[] = [];
     if (!unresolved.length) {
@@ -295,6 +361,7 @@ export class RealityService {
         });
     }
     const plan: RepairPlan = {
+      ...(operatorDate ? { operatorDate } : {}),
       id: planId,
       entityId: entity.id,
       snapshotId: s.id,
@@ -308,11 +375,15 @@ export class RealityService {
         : actions.length
           ? "review"
           : "unchanged",
-      explanation: unresolved.length
-        ? "The available authorized evidence does not establish every required fact. Clarification is needed."
-        : actions.length
-          ? "The configured decision owner approved this fact. Later suggestions do not supersede it. Review the exact changes below."
-          : "The selected records already match the supported decision.",
+      explanation: operatorDate
+        ? actions.length
+          ? "Timing issue: the launch records do not match the operator-requested October 2, 2026 date. Change the Calendar milestone and Jira release date to October 2. Agent panels are presentation-only for this repair."
+          : "The Calendar milestone and Jira release already match the operator-requested October 2, 2026 date."
+        : unresolved.length
+          ? "The available authorized evidence does not establish every required fact. Clarification is needed."
+          : actions.length
+            ? "The configured decision owner approved this fact. Later suggestions do not supersede it. Review the exact changes below."
+            : "The selected records already match the supported decision.",
       unresolved,
       canonical,
       mode: this.providers.mode,
@@ -508,8 +579,15 @@ export class RealityService {
   }
   async sourceUnchanged(p: RepairPlan) {
     const snapshot = this.store.get<Snapshot>("snapshot", p.snapshotId)!;
-    const fresh = await this.providers.snapshot(this.entity(p.entityId));
-    await this.enrichClarifications(fresh);
+    if (p.operatorDate)
+      assert(
+        this.store.get("operatorDate", p.entityId)?.date === p.operatorDate,
+        "The operator instruction changed. Review a new revision.",
+      );
+    const fresh = p.operatorDate
+      ? await this.operatorSnapshot(this.entity(p.entityId))
+      : await this.providers.snapshot(this.entity(p.entityId));
+    if (!p.operatorDate) await this.enrichClarifications(fresh);
     assert(
       fresh.complete && sourceDigest(snapshot) === sourceDigest(fresh),
       "Decision evidence changed. Scan and review a new revision.",

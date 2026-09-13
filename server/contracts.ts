@@ -142,6 +142,8 @@ export interface RepairAction {
   description: string;
 }
 export interface RepairPlan {
+  /** Explicit operator date override; no model or Slack decision is claimed. */
+  operatorDate?: string;
   id: string;
   entityId: string;
   snapshotId: string;

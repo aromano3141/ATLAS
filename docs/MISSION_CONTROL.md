@@ -33,6 +33,16 @@ The supplied scenario text is presentation material, not a claim that a reply ex
 
 ## Live behavior
 
+The main app also has a direct **Atlas Demo Launch / Date repair** card. Per the
+operator's updated demo request, this card records October 2 as an explicit
+operator instruction, reads Calendar/Jira, and shows a timing issue when they
+do not match. **Change Calendar & Jira to October 2** is the approval/execution
+button. Agent panels are UI-only for this path; it does not require a Slack
+reply or model assessment. Its persisted override also applies to later scans
+of this entity. It still uses the normal effect journal, preflights, partial
+outcomes, recovery, and independent rereads. Other entities retain the original
+evidence-based reconciliation flow described below.
+
 Live queues a fresh, entity-specific read-only scan for configured `atlas-launch`.
 It reads Slack, Calendar, and Jira before showing current source values. It checks
 whether the requested October 2 reply actually appears in the bound Slack thread;

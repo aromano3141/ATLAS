@@ -254,6 +254,18 @@ export function createApi(
       effects: p.actions.map((a) => r.service.store.effect(a.id)),
     });
   });
+  app.post("/api/atlas-launch/prepare", async (c) => {
+    const service = getRuntime(c).service;
+    const result = await service.prepareOperatorLaunch();
+    const plan = service.plan(result.planId);
+    return c.json({
+      plan,
+      snapshot: service.store.get("missionSnapshot", plan.entityId),
+      approval: service.store.get("approval", plan.id),
+      run: service.store.get("run", plan.id),
+      effects: plan.actions.map((a) => service.store.effect(a.id)),
+    });
+  });
   app.post("/api/plans/:id/decision", async (c) => {
     const body = z
       .object({ decision: z.enum(["approved", "rejected", "unresolved"]) })

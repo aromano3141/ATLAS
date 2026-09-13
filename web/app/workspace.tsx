@@ -67,6 +67,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { api, date, pretty, type Mode, type State } from "@/lib/api";
+import LaunchRepair from "./launch-repair";
 import type {
   EventRevision,
   RepairPlan,
@@ -453,6 +454,10 @@ export default function Workspace() {
                       </section>
                     ))}
                   </div>
+                  {mode === "live" &&
+                    state.config.entities.some(
+                      (e) => e.id === "atlas-launch",
+                    ) && <LaunchRepair />}
                   {state.scanErrors
                     .filter((e) => e.error)
                     .map((e) => (
@@ -525,11 +530,18 @@ export default function Workspace() {
                                 )?.title || p.entityId}
                               </strong>
                               <p>
-                                {p.actions.length
-                                  ? `${p.actions.length} proposed corrections`
-                                  : p.unresolved.length
-                                    ? "Needs clarification"
-                                    : "Records agree"}
+                                {p.operatorDate &&
+                                !state.runs.some(
+                                  (r) =>
+                                    r.planId === p.id && r.state === "verified",
+                                ) &&
+                                p.actions.length
+                                  ? "Timing issue · October 2 requested"
+                                  : p.actions.length
+                                    ? `${p.actions.length} proposed corrections`
+                                    : p.unresolved.length
+                                      ? "Needs clarification"
+                                      : "Records agree"}
                               </p>
                               <Status
                                 value={
@@ -880,8 +892,9 @@ function RepairDetail({
           </TabsContent>
           <TabsContent value="blackboard">
             <p className="muted text-sm my-4">
-              These assessments committed independently before seeing peer
-              conclusions. Confidence is model-reported.
+              {p.operatorDate
+                ? "Operator-requested repair. Agent panels are presentation-only; no model assessments were used."
+                : "These assessments committed independently before seeing peer conclusions. Confidence is model-reported."}
             </p>
             {p.assessments.map((a) => (
               <article className="assessment" key={a.role}>
